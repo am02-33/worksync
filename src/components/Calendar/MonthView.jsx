@@ -1,14 +1,11 @@
 import { useMemo } from 'react'
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, isToday, isSameDay } from 'date-fns'
-import { getHolidayName } from '../../lib/holidays'
-import { sortEventsByUserOrder } from '../../utils/sortUsers'
+import { sortSchedulesByUserName } from '../../utils/sortUsers'
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 const MAX_VISIBLE = 6
 
-export default function MonthView({ currentDate, events, users, sortedUsers, onDayClick, onEventClick, selectedDate, highlightUserId, swapFirstEvent }) {
-  const year = currentDate.getFullYear()
-
+export default function MonthView({ currentDate, events, users, sortBy, onDayClick, onEventClick, selectedDate, highlightUserId, swapFirstEvent, getHolidayName }) {
   const weeks = useMemo(() => {
     const monthStart = startOfMonth(currentDate)
     const monthEnd = endOfMonth(currentDate)
@@ -23,7 +20,8 @@ export default function MonthView({ currentDate, events, users, sortedUsers, onD
   const getEventsForDay = (date) => {
     const dateStr = format(date, 'yyyy-MM-dd')
     const dayEvs = events.filter(e => e.date === dateStr)
-    return sortEventsByUserOrder(dayEvs, sortedUsers)
+    // 이름 기준 정렬
+    return sortSchedulesByUserName(dayEvs, users, sortBy)
   }
 
   return (
@@ -37,7 +35,7 @@ export default function MonthView({ currentDate, events, users, sortedUsers, onD
         {weeks.map((week) =>
           week.map((day, di) => {
             const dateStr = format(day, 'yyyy-MM-dd')
-            const holiday = getHolidayName(dateStr, year)
+            const holiday = getHolidayName(dateStr)
             const isCurrentMonth = isSameMonth(day, currentDate)
             const isTodayDate = isToday(day)
             const isSelected = selectedDate && isSameDay(day, selectedDate)
@@ -45,7 +43,6 @@ export default function MonthView({ currentDate, events, users, sortedUsers, onD
             const isSun = di === 0
             const isSat = di === 6
             const hasHighlight = highlightUserId && dayEvents.some(e => e.user_id === highlightUserId)
-
             const visibleEvents = dayEvents.slice(0, MAX_VISIBLE)
             const hiddenCount = dayEvents.length - MAX_VISIBLE
 
@@ -65,7 +62,11 @@ export default function MonthView({ currentDate, events, users, sortedUsers, onD
               >
                 <div className="day-number-row">
                   <span className="day-number">{format(day, 'd')}</span>
-                  {holiday && <span className="holiday-label" title={holiday}>{holiday.length > 4 ? holiday.slice(0, 3) + '…' : holiday}</span>}
+                  {holiday && isCurrentMonth && (
+                    <span className="holiday-label" title={holiday}>
+                      {holiday.length > 5 ? holiday.slice(0, 4) + '…' : holiday}
+                    </span>
+                  )}
                 </div>
                 <div className="day-events">
                   {visibleEvents.map(event => {
@@ -81,10 +82,7 @@ export default function MonthView({ currentDate, events, users, sortedUsers, onD
                         onClick={(e) => { e.stopPropagation(); onEventClick(event) }}
                         title={`${event.assignee} - ${event.title}`}
                       >
-                        <span className="event-chip-text">
-                          {event.start_time && <span className="event-time">{event.start_time.slice(0, 5)} </span>}
-                          {event.assignee}
-                        </span>
+                        <span className="event-chip-text">{event.assignee}</span>
                       </div>
                     )
                   })}

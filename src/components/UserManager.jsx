@@ -1,7 +1,48 @@
 import { useState } from 'react'
 import { X, Plus, Trash2, Edit2, Check } from 'lucide-react'
 
-const COLOR_PRESETS = ['#4F8EF7','#A855F7','#10B981','#F59E0B','#EF4444','#EC4899','#14B8A6','#F97316','#6366F1','#84CC16']
+const COLOR_PRESETS = ['#4F8EF7','#A855F7','#10B981','#F59E0B','#EF4444','#EC4899','#14B8A6','#F97316','#6366F1','#84CC16','#06B6D4','#8B5CF6']
+
+function ColorPicker({ value, onChange }) {
+  const [hexInput, setHexInput] = useState(value)
+  const [hexError, setHexError] = useState(false)
+
+  const handleHexChange = (val) => {
+    setHexInput(val)
+    const clean = val.startsWith('#') ? val : '#' + val
+    if (/^#[0-9A-Fa-f]{6}$/.test(clean)) {
+      setHexError(false)
+      onChange(clean)
+    } else {
+      setHexError(true)
+    }
+  }
+
+  return (
+    <div>
+      <div className="color-dot-grid" style={{ marginBottom: '8px' }}>
+        {COLOR_PRESETS.map(c => (
+          <button key={c} className={`color-dot ${value === c ? 'active' : ''}`}
+            style={{ backgroundColor: c }} onClick={() => { onChange(c); setHexInput(c) }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <input type="color" value={value}
+          onChange={e => { onChange(e.target.value); setHexInput(e.target.value) }}
+          className="color-picker-small" title="컬러 피커" />
+        <input
+          className={`form-input ${hexError ? 'input-error' : ''}`}
+          style={{ width: '110px', fontFamily: 'monospace', fontSize: '13px' }}
+          type="text"
+          placeholder="#FF5733"
+          value={hexInput}
+          onChange={e => handleHexChange(e.target.value)}
+        />
+        <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: value, border: '2px solid var(--border)', flexShrink: 0 }} />
+      </div>
+    </div>
+  )
+}
 
 export default function UserManager({ isOpen, onClose, users, groups, onAdd, onUpdate, onDelete, events }) {
   const [form, setForm] = useState({ name: '', color: COLOR_PRESETS[0], memo: '', group_id: '' })
@@ -24,10 +65,8 @@ export default function UserManager({ isOpen, onClose, users, groups, onAdd, onU
   }
 
   const handleDelete = async (user) => {
-    const userEvents = events.filter(e => e.user_id === user.id)
-    if (userEvents.length > 0) {
-      if (!window.confirm(`${user.name}에게 배정된 일정이 ${userEvents.length}개 있습니다. 그래도 삭제하시겠습니까?`)) return
-    }
+    const cnt = events.filter(e => e.user_id === user.id).length
+    if (cnt > 0 && !window.confirm(`${user.name}에게 배정된 일정이 ${cnt}개 있습니다. 그래도 삭제하시겠습니까?`)) return
     await onDelete(user.id)
   }
 
@@ -45,7 +84,6 @@ export default function UserManager({ isOpen, onClose, users, groups, onAdd, onU
         </div>
 
         <div className="modal-body">
-          {/* 추가 폼 */}
           <div className="user-add-form">
             <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '10px' }}>새 사용자 추가</h3>
             {error && <div className="form-error">{error}</div>}
@@ -72,22 +110,14 @@ export default function UserManager({ isOpen, onClose, users, groups, onAdd, onU
               </div>
             )}
             <div className="form-group">
-              <label className="form-label">색상</label>
-              <div className="color-dot-grid">
-                {COLOR_PRESETS.map(c => (
-                  <button key={c} className={`color-dot ${form.color === c ? 'active' : ''}`}
-                    style={{ backgroundColor: c }} onClick={() => setForm(p => ({ ...p, color: c }))} />
-                ))}
-                <input type="color" value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))}
-                  className="color-picker-small" />
-              </div>
+              <label className="form-label">색상 (프리셋 · 컬러피커 · HEX 직접 입력)</label>
+              <ColorPicker value={form.color} onChange={c => setForm(p => ({ ...p, color: c }))} />
             </div>
-            <button className="btn btn-primary" onClick={handleAdd} style={{ width: '100%' }}>
+            <button className="btn btn-primary" onClick={handleAdd} style={{ width: '100%', marginTop: '4px' }}>
               <Plus size={14} /> 사용자 추가
             </button>
           </div>
 
-          {/* 사용자 목록 */}
           <div style={{ marginTop: '20px' }}>
             <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '10px' }}>등록된 사용자 ({users.length}명)</h3>
             {users.length === 0 ? (
@@ -96,30 +126,29 @@ export default function UserManager({ isOpen, onClose, users, groups, onAdd, onU
               <div className="user-list">
                 {users.map(user => {
                   const userGroup = groups.find(g => g.id === user.group_id)
-                  const userEventCount = events.filter(e => e.user_id === user.id).length
+                  const cnt = events.filter(e => e.user_id === user.id).length
                   return (
                     <div key={user.id} className="user-list-item">
                       {editingId === user.id ? (
-                        <div style={{ flex: 1, display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                          <input className="form-input" style={{ width: '90px' }} value={editForm.name}
-                            onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} />
-                          <input className="form-input" style={{ width: '100px' }} value={editForm.memo}
-                            onChange={e => setEditForm(p => ({ ...p, memo: e.target.value }))} placeholder="메모" />
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div className="form-row">
+                            <input className="form-input" value={editForm.name} placeholder="이름"
+                              onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} />
+                            <input className="form-input" value={editForm.memo} placeholder="메모"
+                              onChange={e => setEditForm(p => ({ ...p, memo: e.target.value }))} />
+                          </div>
                           {groups.length > 0 && (
-                            <select className="form-input" style={{ width: '90px', fontSize: '12px', padding: '4px' }}
+                            <select className="form-input" style={{ fontSize: '12px' }}
                               value={editForm.group_id} onChange={e => setEditForm(p => ({ ...p, group_id: e.target.value }))}>
-                              <option value="">그룹없음</option>
+                              <option value="">그룹 없음</option>
                               {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                             </select>
                           )}
-                          <div className="color-dot-grid" style={{ gap: '3px' }}>
-                            {COLOR_PRESETS.map(c => (
-                              <button key={c} className={`color-dot sm ${editForm.color === c ? 'active' : ''}`}
-                                style={{ backgroundColor: c }} onClick={() => setEditForm(p => ({ ...p, color: c }))} />
-                            ))}
+                          <ColorPicker value={editForm.color} onChange={c => setEditForm(p => ({ ...p, color: c }))} />
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => handleUpdate(user.id)}><Check size={13} /> 저장</button>
+                            <button className="btn btn-ghost" onClick={() => setEditingId(null)}><X size={13} /> 취소</button>
                           </div>
-                          <button className="btn btn-primary" style={{ padding: '4px 8px' }} onClick={() => handleUpdate(user.id)}><Check size={13} /></button>
-                          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={() => setEditingId(null)}><X size={13} /></button>
                         </div>
                       ) : (
                         <>
@@ -128,13 +157,13 @@ export default function UserManager({ isOpen, onClose, users, groups, onAdd, onU
                             <div style={{ fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                               {user.name}
                               {userGroup && (
-                                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '10px', backgroundColor: userGroup.color + '22', color: userGroup.color, fontWeight: 700 }}>
+                                <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '10px', backgroundColor: userGroup.color + '22', color: userGroup.color, fontWeight: 700 }}>
                                   {userGroup.name}
                                 </span>
                               )}
                             </div>
                             {user.memo && <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{user.memo}</div>}
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>일정 {userEventCount}개</div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{user.color} · 일정 {cnt}개</div>
                           </div>
                           <button className="icon-btn-sm" onClick={() => startEdit(user)}><Edit2 size={13} /></button>
                           <button className="icon-btn-sm danger" onClick={() => handleDelete(user)}><Trash2 size={13} /></button>

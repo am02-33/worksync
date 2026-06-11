@@ -10,10 +10,11 @@ import EventModal from './components/EventModal'
 import QuickAssign from './components/QuickAssign'
 import UserManager from './components/UserManager'
 import GroupManager from './components/GroupManager'
-import StatsPanel from './components/StatsPanel'
+import HolidayManager from './components/HolidayManager'
 import { useEvents } from './hooks/useEvents'
 import { useUsers } from './hooks/useUsers'
 import { useGroups } from './hooks/useGroups'
+import { useHolidays } from './hooks/useHolidays'
 import { sortUsers, SORT_OPTIONS } from './utils/sortUsers'
 
 const isSupabaseConfigured = () => {
@@ -29,17 +30,17 @@ export default function App() {
   const [editingEvent, setEditingEvent] = useState(null)
   const [isUserManagerOpen, setIsUserManagerOpen] = useState(false)
   const [isGroupManagerOpen, setIsGroupManagerOpen] = useState(false)
-  const [isStatsOpen, setIsStatsOpen] = useState(false)
+  const [isHolidayManagerOpen, setIsHolidayManagerOpen] = useState(false)
   const [quickMode, setQuickMode] = useState(false)
   const [swapFirstEvent, setSwapFirstEvent] = useState(null)
   const [highlightUserId, setHighlightUserId] = useState(null)
-  const [sortBy, setSortBy] = useState(SORT_OPTIONS.REGISTERED)
+  const [sortBy, setSortBy] = useState(SORT_OPTIONS.NAME_ASC)
 
-  const { events, loading, addEvent, updateEvent, deleteEvent, swapEvents, quickAssign, quickAssignGroup } = useEvents()
+  const { events, loading, addEvent, updateEvent, deleteEvent, deleteAllEvents, swapEvents, quickAssign, quickAssignGroup } = useEvents()
   const { users, addUser, updateUser, deleteUser } = useUsers()
   const { groups, addGroup, updateGroup, deleteGroup } = useGroups()
+  const { dbHolidays, addCustomHoliday, deleteHoliday, updateHoliday, refreshYearHolidays, getHolidayName } = useHolidays(currentDate.getFullYear())
 
-  // 전역 정렬된 사용자 목록 — 모든 화면에서 동일하게 사용
   const sortedUsers = useMemo(() => sortUsers(users, sortBy), [users, sortBy])
 
   if (!isSupabaseConfigured()) {
@@ -47,8 +48,8 @@ export default function App() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F0F2F5', padding: '20px' }}>
         <div style={{ background: '#fff', borderRadius: '16px', padding: '40px', maxWidth: '500px', width: '100%', textAlign: 'center' }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔧</div>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '12px' }}>Supabase 설정 필요</h1>
-          <p style={{ color: '#64748B', fontSize: '14px' }}>.env 파일에 VITE_SUPABASE_URL과 VITE_SUPABASE_ANON_KEY를 설정해주세요.</p>
+          <h1 style={{ fontSize: '22px', fontWeight: 700 }}>Supabase 설정 필요</h1>
+          <p style={{ color: '#64748B', fontSize: '14px', marginTop: '8px' }}>.env 파일에 환경변수를 설정해주세요.</p>
         </div>
       </div>
     )
@@ -84,8 +85,9 @@ export default function App() {
     return await addEvent(formData)
   }
 
-  const handleQuickAssignGroup = async (dateStr, group, members) => {
-    await quickAssignGroup(dateStr, group, members)
+  const handleDeleteAll = async () => {
+    const result = await deleteAllEvents()
+    if (!result.success) alert('삭제 실패: ' + result.error)
   }
 
   return (
@@ -98,11 +100,12 @@ export default function App() {
         onAddEvent={() => handleAddEvent(selectedDate || currentDate)}
         onUserManager={() => setIsUserManagerOpen(true)}
         onGroupManager={() => setIsGroupManagerOpen(true)}
-        onStatsPanel={() => setIsStatsOpen(true)}
+        onHolidayManager={() => setIsHolidayManagerOpen(true)}
         quickMode={quickMode}
         onQuickModeToggle={() => setQuickMode(p => !p)}
         sortBy={sortBy}
         onSortChange={setSortBy}
+        onDeleteAll={handleDeleteAll}
       />
 
       {swapFirstEvent && (
@@ -118,16 +121,18 @@ export default function App() {
 
           {viewMode === 'year' && (
             <YearView currentDate={currentDate} events={events} users={users}
-              sortedUsers={sortedUsers} onDayClick={handleDayClick} highlightUserId={highlightUserId} />
+              sortBy={sortBy} onDayClick={handleDayClick}
+              highlightUserId={highlightUserId} getHolidayName={getHolidayName} />
           )}
           {viewMode === 'month' && (
             <MonthView currentDate={currentDate} events={events} users={users}
-              sortedUsers={sortedUsers} onDayClick={handleDayClick} onEventClick={handleEventClick}
-              selectedDate={selectedDate} highlightUserId={highlightUserId} swapFirstEvent={swapFirstEvent} />
+              sortBy={sortBy} onDayClick={handleDayClick} onEventClick={handleEventClick}
+              selectedDate={selectedDate} highlightUserId={highlightUserId}
+              swapFirstEvent={swapFirstEvent} getHolidayName={getHolidayName} />
           )}
           {viewMode === 'week' && (
-            <WeekView currentDate={currentDate} events={events} onDayClick={handleDayClick}
-              onEventClick={handleEventClick} selectedDate={selectedDate} />
+            <WeekView currentDate={currentDate} events={events}
+              onDayClick={handleDayClick} onEventClick={handleEventClick} selectedDate={selectedDate} />
           )}
           {viewMode === 'day' && (
             <DayView currentDate={currentDate} events={events}
@@ -142,7 +147,7 @@ export default function App() {
           groups={groups}
           events={events}
           onQuickAssign={quickAssign}
-          onQuickAssignGroup={handleQuickAssignGroup}
+          onQuickAssignGroup={quickAssignGroup}
           onEventClick={handleEventClick}
           onAddEvent={() => handleAddEvent(selectedDate || currentDate)}
           swapFirstEvent={swapFirstEvent}
@@ -184,15 +189,15 @@ export default function App() {
         onUpdateUser={updateUser}
       />
 
-      <StatsPanel
-        isOpen={isStatsOpen}
-        onClose={() => setIsStatsOpen(false)}
-        users={sortedUsers}
-        groups={groups}
-        events={events}
-        currentDate={currentDate}
-        onHighlight={setHighlightUserId}
-        highlightUserId={highlightUserId}
+      <HolidayManager
+        isOpen={isHolidayManagerOpen}
+        onClose={() => setIsHolidayManagerOpen(false)}
+        dbHolidays={dbHolidays}
+        onAdd={addCustomHoliday}
+        onDelete={deleteHoliday}
+        onUpdate={updateHoliday}
+        onRefresh={refreshYearHolidays}
+        currentYear={currentDate.getFullYear()}
       />
     </div>
   )

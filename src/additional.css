@@ -1,7 +1,27 @@
-/* 기존 index.css에 추가할 CSS */
-/* 이 내용을 index.css 맨 아래에 붙여넣으세요 */
+/* index.css 맨 아래에 추가할 CSS */
 
-/* ===== 정렬 선택 드롭다운 ===== */
+/* 삭제 아이콘 버튼 (빨간색) */
+.icon-btn.danger-icon {
+  color: rgba(239,68,68,.7);
+}
+.icon-btn.danger-icon:hover {
+  background: rgba(239,68,68,.1);
+  color: #EF4444;
+  border-color: #EF4444;
+}
+
+/* HEX 입력 오류 */
+.input-error {
+  border-color: #EF4444 !important;
+  box-shadow: 0 0 0 3px rgba(239,68,68,.1) !important;
+}
+
+/* 공휴일 관리 스피너 */
+.spinning {
+  animation: spin .7s linear infinite;
+}
+
+/* 정렬 선택 */
 .sort-select {
   padding: 5px 8px;
   border: 1px solid rgba(255,255,255,.2);
@@ -14,17 +34,13 @@
   outline: none;
 }
 .sort-select option {
-  background: var(--brand);
+  background: #1A1A2E;
   color: #fff;
 }
-.sort-select:hover {
-  border-color: rgba(255,255,255,.4);
-}
 
-/* ===== 개인/그룹 탭 ===== */
+/* 개인/그룹 탭 */
 .quick-tabs {
   display: flex;
-  gap: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -42,17 +58,12 @@
   color: var(--text-secondary);
   transition: all .15s;
 }
-.quick-tab.active {
-  background: var(--accent-light);
-  color: #fff;
-}
-.quick-tab:not(.active):hover {
-  background: var(--surface-2);
-}
+.quick-tab.active { background: var(--accent-light); color: #fff; }
+.quick-tab:not(.active):hover { background: var(--surface-2); }
 
-/* ===== 그룹 배정 버튼 ===== */
+/* 그룹 배정 버튼 */
 .quick-group-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   padding: 6px 12px;
   border-radius: 20px;
@@ -63,19 +74,10 @@
   font-family: var(--font);
   transition: opacity .12s, transform .12s;
 }
-.quick-group-btn:hover {
-  opacity: .85;
-  transform: scale(1.04);
-}
+.quick-group-btn:hover { opacity: .85; transform: scale(1.04); }
 
-/* ===== 모바일 추가 ===== */
+/* 모바일 */
 @media (max-width: 768px) {
-  .sort-select {
-    font-size: 11px;
-    padding: 4px 6px;
-  }
-  .quick-group-btn {
-    padding: 7px 12px;
-    font-size: 12px;
-  }
+  .sort-select { font-size: 11px; padding: 4px 6px; }
+  .quick-group-btn { padding: 7px 12px; font-size: 12px; }
 }

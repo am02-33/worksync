@@ -1,12 +1,11 @@
 import { useMemo } from 'react'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday } from 'date-fns'
-import { getHolidayName } from '../../lib/holidays'
-import { sortEventsByUserOrder } from '../../utils/sortUsers'
+import { sortSchedulesByUserName } from '../../utils/sortUsers'
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 
-function MiniMonth({ year, month, events, users, sortedUsers, onDayClick, highlightUserId }) {
+function MiniMonth({ year, month, events, users, sortBy, onDayClick, highlightUserId, getHolidayName }) {
   const monthDate = new Date(year, month - 1, 1)
   const days = eachDayOfInterval({
     start: startOfWeek(startOfMonth(monthDate), { weekStartsOn: 0 }),
@@ -15,7 +14,7 @@ function MiniMonth({ year, month, events, users, sortedUsers, onDayClick, highli
 
   const getEventsForDay = (dateStr) => {
     const evs = events.filter(e => e.date === dateStr)
-    return sortEventsByUserOrder(evs, sortedUsers)
+    return sortSchedulesByUserName(evs, users, sortBy)
   }
 
   return (
@@ -30,7 +29,7 @@ function MiniMonth({ year, month, events, users, sortedUsers, onDayClick, highli
         {days.map(day => {
           const dateStr = format(day, 'yyyy-MM-dd')
           const inMonth = isSameMonth(day, monthDate)
-          const holiday = getHolidayName(dateStr, year)
+          const holiday = inMonth ? getHolidayName(dateStr) : null
           const dayEvents = inMonth ? getEventsForDay(dateStr) : []
           const isSun = day.getDay() === 0
           const isSat = day.getDay() === 6
@@ -48,6 +47,7 @@ function MiniMonth({ year, month, events, users, sortedUsers, onDayClick, highli
                 isHighlight && 'highlighted',
               ].filter(Boolean).join(' ')}
               onClick={() => inMonth && onDayClick(day)}
+              title={holiday || ''}
             >
               <span className="mini-day-num">{format(day, 'd')}</span>
               {inMonth && dayEvents.length > 0 && (
@@ -71,15 +71,16 @@ function MiniMonth({ year, month, events, users, sortedUsers, onDayClick, highli
   )
 }
 
-export default function YearView({ currentDate, events, users, sortedUsers, onDayClick, highlightUserId }) {
+export default function YearView({ currentDate, events, users, sortBy, onDayClick, highlightUserId, getHolidayName }) {
   const year = currentDate.getFullYear()
   return (
     <div className="year-view">
       <div className="year-grid">
         {MONTHS.map(month => (
           <MiniMonth key={month} year={year} month={month}
-            events={events} users={users} sortedUsers={sortedUsers}
-            onDayClick={onDayClick} highlightUserId={highlightUserId} />
+            events={events} users={users} sortBy={sortBy}
+            onDayClick={onDayClick} highlightUserId={highlightUserId}
+            getHolidayName={getHolidayName} />
         ))}
       </div>
     </div>

@@ -1,10 +1,18 @@
+/**
+ * EventModal
+ *
+ * 모달 닫힘 버그 수정:
+ * - 오버레이: onPointerDown (not onClick) + e.target === e.currentTarget 체크
+ * - 내부 컨텐츠: onPointerDown stopPropagation
+ * - input 입력 중 ESC는 App.jsx에서 blur만 하고 모달 유지
+ */
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { X, Trash2, Save, ArrowLeftRight } from 'lucide-react'
 
 const DEFAULT_FORM = {
   title: '', user_id: '', assignee: '', date: '',
-  start_time: '', end_time: '',   // 빈 문자열 = 선택 안 함
+  start_time: '', end_time: '',
   memo: '', color: '#4F8EF7', category: '근무',
 }
 
@@ -58,11 +66,8 @@ export default function EventModal({
     if (!form.assignee.trim()) { setError('담당자를 선택하세요.'); return }
     if (!form.date)            { setError('날짜를 선택하세요.'); return }
     if (!form.title.trim())    { setError('제목을 입력하세요.'); return }
-    // 시간은 필수 아님
-
     setSaving(true)
     setError('')
-    // null 처리: 빈 문자열은 null로 저장
     const saveData = {
       ...form,
       start_time: form.start_time || null,
@@ -82,10 +87,26 @@ export default function EventModal({
     onClose()
   }
 
+  // 오버레이 클릭: 반드시 오버레이 자체 클릭일 때만 닫기
+  // e.target === e.currentTarget 으로 내부 요소 버블링 차단
+  const handleOverlayPointerDown = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose()
+    }
+  }
+
   return (
-    <div className="modal-overlay" onPointerUp={onClose}>
-      <div className="modal" onPointerDown={(e) => e.stopPropagation()}>
-        <div className="modal-header" style={{ borderLeftColor: form.color, borderLeftWidth: 4, borderLeftStyle: 'solid' }}>
+    <div
+      className="modal-overlay"
+      // ── 핵심 수정: pointer down이 오버레이 자체일 때만 닫기 ──
+      onPointerDown={handleOverlayPointerDown}
+    >
+      <div
+        className="modal"
+        // ── 내부 클릭이 오버레이로 버블링되지 않도록 ──
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header" style={{ borderLeft: `4px solid ${form.color}` }}>
           <h2 className="modal-title">{event ? '일정 수정' : '새 일정 추가'}</h2>
           <button className="modal-close" onPointerUp={onClose}><X size={18} /></button>
         </div>
@@ -97,60 +118,92 @@ export default function EventModal({
           <div className="form-group">
             <label className="form-label">담당자 *</label>
             <div className="user-btn-grid">
-              {users.map(user => (
-                <button
-                  key={user.id}
-                  className={`user-select-btn ${form.user_id === user.id ? 'active' : ''}`}
-                  style={{
-                    backgroundColor: form.user_id === user.id ? user.color : 'transparent',
-                    borderColor: user.color,
-                    color: form.user_id === user.id ? '#fff' : user.color,
-                  }}
-                  onPointerUp={() => handleUserSelect(user)}
-                >
-                  {user.name}
-                </button>
-              ))}
-              {users.length === 0 && (
-                <input className="form-input" type="text" placeholder="담당자 이름 직접 입력"
-                  value={form.assignee} onChange={e => handleChange('assignee', e.target.value)} />
-              )}
+              {users.length > 0
+                ? users.map(user => (
+                  <button
+                    key={user.id}
+                    className={`user-select-btn ${form.user_id === user.id ? 'active' : ''}`}
+                    style={{
+                      backgroundColor: form.user_id === user.id ? user.color : 'transparent',
+                      borderColor: user.color,
+                      color: form.user_id === user.id ? '#fff' : user.color,
+                    }}
+                    // onPointerUp 사용 — 모달 내부이므로 onClick도 안전하지만 통일성을 위해
+                    onPointerUp={() => handleUserSelect(user)}
+                  >
+                    {user.name}
+                  </button>
+                ))
+                : (
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder="담당자 이름 직접 입력"
+                    value={form.assignee}
+                    onChange={e => handleChange('assignee', e.target.value)}
+                    // input 클릭이 오버레이로 전파되지 않도록
+                    onPointerDown={(e) => e.stopPropagation()}
+                  />
+                )
+              }
             </div>
           </div>
 
           {/* 제목 */}
           <div className="form-group">
             <label className="form-label">제목 *</label>
-            <input className="form-input" type="text" placeholder="일정 제목"
-              value={form.title} onChange={e => handleChange('title', e.target.value)} maxLength={100} />
+            <input
+              className="form-input" type="text" placeholder="일정 제목"
+              value={form.title}
+              onChange={e => handleChange('title', e.target.value)}
+              onPointerDown={(e) => e.stopPropagation()}
+              maxLength={100}
+            />
           </div>
 
           {/* 날짜 */}
           <div className="form-group">
             <label className="form-label">날짜 *</label>
-            <input className="form-input" type="date" value={form.date}
-              onChange={e => handleChange('date', e.target.value)} />
+            <input
+              className="form-input" type="date"
+              value={form.date}
+              onChange={e => handleChange('date', e.target.value)}
+              onPointerDown={(e) => e.stopPropagation()}
+            />
           </div>
 
-          {/* 시간 — 선택 사항 */}
+          {/* 시간 (선택사항) */}
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">시작 시간 <span style={{ fontWeight: 400, color: '#94A3B8' }}>(선택)</span></label>
-              <input className="form-input" type="time" value={form.start_time}
-                onChange={e => handleChange('start_time', e.target.value)} />
+              <label className="form-label">시작 시간 <span style={{ fontWeight: 400, color: '#94A3B8', textTransform: 'none' }}>(선택)</span></label>
+              <input
+                className="form-input" type="time"
+                value={form.start_time}
+                onChange={e => handleChange('start_time', e.target.value)}
+                onPointerDown={(e) => e.stopPropagation()}
+              />
             </div>
             <div className="form-group">
-              <label className="form-label">종료 시간 <span style={{ fontWeight: 400, color: '#94A3B8' }}>(선택)</span></label>
-              <input className="form-input" type="time" value={form.end_time}
-                onChange={e => handleChange('end_time', e.target.value)} />
+              <label className="form-label">종료 시간 <span style={{ fontWeight: 400, color: '#94A3B8', textTransform: 'none' }}>(선택)</span></label>
+              <input
+                className="form-input" type="time"
+                value={form.end_time}
+                onChange={e => handleChange('end_time', e.target.value)}
+                onPointerDown={(e) => e.stopPropagation()}
+              />
             </div>
           </div>
 
           {/* 메모 */}
           <div className="form-group">
-            <label className="form-label">메모 <span style={{ fontWeight: 400, color: '#94A3B8' }}>(선택)</span></label>
-            <textarea className="form-input form-textarea" placeholder="메모"
-              value={form.memo} onChange={e => handleChange('memo', e.target.value)} rows={2} />
+            <label className="form-label">메모 <span style={{ fontWeight: 400, color: '#94A3B8', textTransform: 'none' }}>(선택)</span></label>
+            <textarea
+              className="form-input form-textarea" placeholder="메모"
+              value={form.memo}
+              onChange={e => handleChange('memo', e.target.value)}
+              onPointerDown={(e) => e.stopPropagation()}
+              rows={2}
+            />
           </div>
         </div>
 
@@ -161,7 +214,9 @@ export default function EventModal({
                 <button className="btn btn-danger" onPointerUp={handleDelete} disabled={saving}>
                   <Trash2 size={15} /> 삭제
                 </button>
-                <button className="btn btn-swap" onPointerUp={() => { onSwapStart(event); onClose() }} disabled={saving}>
+                <button className="btn btn-swap"
+                  onPointerUp={() => { if (onSwapStart) { onSwapStart(event); onClose() } }}
+                  disabled={saving}>
                   <ArrowLeftRight size={15} /> 교체
                 </button>
               </>

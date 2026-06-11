@@ -1,194 +1,332 @@
-/* ===== index.css 맨 아래에 추가 ===== */
+/* ═══════════════════════════════════════════════════════════
+   OKWOOD 주간/일간 보기 스타일
+   기존 week_day_styles.css 파일 전체 교체
+═══════════════════════════════════════════════════════════ */
 
-/* ──────────────────────────────────────
-   주간 보기 카드형
-────────────────────────────────────── */
-.week-view-card {
+/* ──────────────────────────────────────────────────────────
+   주간 보기 (WeekView)
+────────────────────────────────────────────────────────── */
+
+.wv-wrap {
   height: 100%;
-  overflow-y: auto;
+  overflow: auto;
   -webkit-overflow-scrolling: touch;
+  padding: 4px;
 }
 
-.week-card-grid {
+/* 7열 그리드 */
+.wv-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
-  min-height: 300px;
-  align-items: stretch;
+  min-height: 200px;
 }
 
-.week-day-card {
+/* 날짜 카드 */
+.wv-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 10px 8px;
+  padding: 10px 8px 28px;   /* 하단 padding: + 버튼 공간 */
   display: flex;
   flex-direction: column;
   gap: 6px;
   cursor: pointer;
-  transition: border-color .15s, background .15s;
   position: relative;
   min-height: 160px;
+  transition: border-color .15s, background .15s;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-.week-day-card:hover { border-color: var(--accent-light); background: #FAFAFA; }
-.week-day-card.today { border-color: var(--accent-light); border-width: 2px; background: #FFF5F7; }
-.week-day-card.selected { background: #EEF2FF; border-color: #4F46E5; }
-.week-day-card.holiday { background: #FFF5F5; }
-.week-day-card.sunday .week-card-date-num { color: var(--holiday-red); }
-.week-day-card.saturday .week-card-date-num { color: var(--saturday-blue); }
+.wv-card:hover   { border-color: var(--accent-light); }
+.wv-today        { border: 2px solid var(--accent-light) !important; background: #FFF5F7; }
+.wv-selected     { background: #EEF2FF; border-color: #4F46E5 !important; }
+.wv-holiday      { background: #FFF5F5; }
 
-.week-card-header { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
-.week-card-day-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
-.week-card-date-num { font-size: 20px; font-weight: 800; color: var(--text); line-height: 1.2; }
-.week-card-date-num.today-circle {
-  background: var(--accent-light); color: #fff;
-  width: 34px; height: 34px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
+/* 카드 헤더 (요일 + 날짜 숫자 + 공휴일) */
+.wv-card-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.wv-dow {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.wv-sun { color: var(--holiday-red) !important; }
+.wv-sat { color: var(--saturday-blue) !important; }
+
+.wv-num {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.1;
+}
+.wv-num-today {
+  background: var(--accent-light);
+  color: #fff !important;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 16px;
 }
-.week-card-holiday { font-size: 10px; color: var(--holiday-red); background: var(--holiday-bg); padding: 2px 6px; border-radius: 4px; text-align: center; font-weight: 600; }
 
-.week-card-events { flex: 1; display: flex; flex-direction: column; gap: 3px; overflow: hidden; }
-.week-card-empty { font-size: 11px; color: var(--text-muted); text-align: center; padding: 8px 0; }
-.week-card-chip {
-  border-radius: 4px; padding: 3px 6px;
-  font-size: 11px; font-weight: 600; color: #fff;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+.wv-holiday-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--holiday-red);
+  background: var(--holiday-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.week-card-chip:hover { opacity: .85; }
-.chip-time { opacity: .85; font-weight: 400; }
-.week-card-more { font-size: 10px; color: var(--text-secondary); padding: 2px 4px; }
 
-.week-card-add {
-  position: absolute; bottom: 6px; right: 6px;
-  width: 24px; height: 24px; border-radius: 50%;
-  border: 1px solid var(--border); background: var(--surface-2);
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  color: var(--text-muted); opacity: 0; transition: opacity .15s;
+/* 이벤트 칩 목록 */
+.wv-chips {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+.wv-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px 0;
+}
+.wv-chip {
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-.week-day-card:hover .week-card-add { opacity: 1; }
-.week-card-add:hover { background: var(--accent-light); color: #fff; border-color: var(--accent-light); }
+.wv-chip:hover { opacity: .85; }
+.wv-chip-time  { opacity: .85; font-weight: 400; }
+.wv-more       { font-size: 10px; color: var(--text-secondary); padding: 1px 4px; }
 
-/* ──────────────────────────────────────
-   일간 보기 카드형
-────────────────────────────────────── */
-.day-view-card {
+/* + 버튼 */
+.wv-add {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity .15s;
+  touch-action: manipulation;
+}
+.wv-card:hover .wv-add { opacity: 1; }
+.wv-add:hover { background: var(--accent-light); color: #fff; border-color: var(--accent-light); opacity: 1; }
+
+/* ──────────────────────────────────────────────────────────
+   일간 보기 (DayView)
+────────────────────────────────────────────────────────── */
+
+.dv-wrap {
   height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.day-card-header {
+/* 날짜 헤더 */
+.dv-header {
   padding: 14px 16px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius) var(--radius) 0 0;
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
   flex-shrink: 0;
 }
-.day-card-header.today { background: #FFF5F7; border-color: var(--accent-light); }
-.day-card-header.holiday { background: var(--holiday-bg); }
-.day-card-date { font-size: 18px; font-weight: 800; color: var(--text); }
-.day-card-holiday { font-size: 13px; color: var(--holiday-red); background: var(--holiday-bg); padding: 3px 10px; border-radius: 20px; font-weight: 600; }
-.day-card-count { font-size: 13px; color: var(--text-secondary); margin-left: auto; }
+.dv-today   { background: #FFF5F7; border-color: var(--accent-light); }
+.dv-holiday { background: var(--holiday-bg); }
+.dv-date    { font-size: 18px; font-weight: 800; color: var(--text); }
+.dv-holiday-text { font-size: 13px; color: var(--holiday-red); margin-top: 2px; }
+.dv-count   { font-size: 13px; color: var(--text-secondary); }
 
-.day-card-body {
+/* 바디: 좌우 분할 */
+.dv-body {
   flex: 1;
   display: flex;
   overflow: hidden;
-  border: 1px solid var(--border); border-top: none;
+  border: 1px solid var(--border);
+  border-top: none;
   border-radius: 0 0 var(--radius) var(--radius);
 }
 
-.day-card-left {
+.dv-left {
   flex: 1;
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid var(--border);
   overflow: hidden;
+  min-width: 0;
 }
-.day-card-right {
-  width: 260px; flex-shrink: 0;
-  padding: 16px; overflow-y: auto;
+
+.dv-right {
+  width: 260px;
+  flex-shrink: 0;
+  padding: 14px;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   background: var(--surface-2);
 }
 
-.day-card-section-title {
-  font-size: 11px; font-weight: 700; color: var(--text-secondary);
-  text-transform: uppercase; letter-spacing: .5px;
-  padding: 12px 16px 8px; flex-shrink: 0;
+.dv-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  padding: 12px 16px 6px;
+  flex-shrink: 0;
 }
 
-.day-card-empty {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
+.dv-sub-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  padding: 4px 0;
+  margin-bottom: 4px;
+}
+
+.dv-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
 }
 
-.day-event-list {
-  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
-  padding: 8px 12px; display: flex; flex-direction: column; gap: 8px;
+.dv-event-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.day-event-card {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px; border-radius: 10px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-left-width: 4px; cursor: pointer;
-  transition: border-color .12s, background .12s;
-  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+.dv-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  cursor: pointer;
+  min-height: 52px;
+  transition: background .12s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
-.day-event-card:hover { background: #F8F9FF; }
-.day-event-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.day-event-info { flex: 1; min-width: 0; }
-.day-event-name { font-size: 15px; font-weight: 700; }
-.day-event-time { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-.day-event-memo { font-size: 12px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dv-card:hover { background: #F8F9FF; }
+.dv-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dv-info { flex: 1; min-width: 0; }
+.dv-name { font-size: 15px; font-weight: 700; }
+.dv-time { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.dv-memo { font-size: 12px; color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dv-arrow { color: #CBD5E1; font-size: 20px; }
 
-.day-card-actions {
-  display: flex; gap: 8px; padding: 10px 12px;
-  border-top: 1px solid var(--border); flex-shrink: 0;
+.dv-actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
-/* 일간 보기 오른쪽 패널 */
-.day-assign-section { margin-bottom: 16px; }
-.day-assign-label { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
-.day-assign-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.day-assign-chip {
-  padding: 6px 14px; border-radius: 999px; border: none;
-  font-size: 13px; font-weight: 700; cursor: pointer; font-family: var(--font);
-  min-height: 34px; white-space: nowrap;
-  display: flex; align-items: center; gap: 5px;
-  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+/* 오른쪽 패널 */
+.dv-assign-block { margin-bottom: 14px; }
+.dv-assign-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-bottom: 8px;
 }
-.day-assign-chip:hover { opacity: .85; }
+.dv-assign-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dv-chip-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font);
+  min-height: 34px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: opacity .12s;
+}
+.dv-chip-btn:hover { opacity: .85; }
 
-/* ──────────────────────────────────────
-   모바일 주간/일간 반응형
-────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────
+   반응형 — 모바일
+────────────────────────────────────────────────────────── */
+
 @media (max-width: 768px) {
   /* 주간: 가로 스크롤 */
-  .week-card-grid {
-    grid-template-columns: repeat(7, minmax(100px, 1fr));
-    overflow-x: auto;
-    gap: 6px;
-  }
-  .week-view-card { overflow-x: auto; }
+  .wv-wrap  { overflow-x: auto; }
+  .wv-grid  { grid-template-columns: repeat(7, minmax(100px, 1fr)); gap: 6px; }
+  .wv-card  { min-height: 120px; padding: 6px 4px 24px; }
+  .wv-num   { font-size: 18px; }
 
-  /* 일간: 세로 스크롤, 패널 숨김 */
-  .day-card-body { flex-direction: column; }
-  .day-card-left { border-right: none; border-bottom: 1px solid var(--border); }
-  .day-card-right { width: 100%; border-top: none; }
+  /* 일간: 세로 스크롤 */
+  .dv-body   { flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .dv-left   { border-right: none; border-bottom: 1px solid var(--border); overflow: visible; }
+  .dv-right  { width: 100%; border-top: none; }
+  .dv-event-list { overflow: visible; }
 }
 
 @media (max-width: 480px) {
-  .week-card-grid { grid-template-columns: repeat(7, minmax(80px, 1fr)); }
-  .week-day-card { min-height: 120px; padding: 6px 4px; }
-  .week-card-date-num { font-size: 16px; }
+  .wv-grid { grid-template-columns: repeat(7, minmax(80px, 1fr)); }
+  .wv-card { min-height: 100px; }
+  .wv-num  { font-size: 15px; }
 }

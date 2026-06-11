@@ -4,22 +4,20 @@ import { ko } from 'date-fns/locale'
 import { Plus } from 'lucide-react'
 import { sortSchedulesByUserName } from '../../utils/sortUsers'
 
-const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
+const DAY_KO  = ['일', '월', '화', '수', '목', '금', '토']
 
-// 시간 표시 유틸
-function formatTime(start, end) {
-  if (!start && !end) return null
-  if (start && end) return `${start.slice(0,5)}~${end.slice(0,5)}`
-  if (start) return start.slice(0,5)
-  if (end) return `~${end.slice(0,5)}`
-  return null
+function formatTime(s, e) {
+  if (!s && !e) return null
+  if (s && e)   return `${s.slice(0,5)}~${e.slice(0,5)}`
+  if (s)        return s.slice(0,5)
+  return `~${e.slice(0,5)}`
 }
 
 export default function WeekView({
   currentDate, events, users, sortBy,
   onDayClick, onEventClick, selectedDate,
-  getHolidayName, onAddEvent,
-  onQuickAssign, onQuickAssignGroup, groups,
+  getHolidayName, onAddEvent, groups,
+  onQuickAssign, onQuickAssignGroup,
 }) {
   const weekDays = useMemo(() => {
     const start = startOfWeek(currentDate, { weekStartsOn: 0 })
@@ -27,86 +25,70 @@ export default function WeekView({
   }, [currentDate])
 
   const getEventsForDay = (date) => {
-    const dateStr = format(date, 'yyyy-MM-dd')
-    return sortSchedulesByUserName(events.filter(e => e.date === dateStr), users, sortBy)
+    const ds = format(date, 'yyyy-MM-dd')
+    return sortSchedulesByUserName(events.filter(e => e.date === ds), users, sortBy)
   }
 
   return (
-    <div className="week-view-card">
-      {/* 7일 카드 그리드 */}
-      <div className="week-card-grid">
+    <div className="wv-wrap">
+      <div className="wv-grid">
         {weekDays.map((day, di) => {
-          const dateStr  = format(day, 'yyyy-MM-dd')
-          const holiday  = getHolidayName(dateStr)
-          const isTodayD = isToday(day)
-          const isSelD   = selectedDate && isSameDay(day, selectedDate)
+          const ds       = format(day, 'yyyy-MM-dd')
+          const holiday  = getHolidayName(ds)
+          const todayDay = isToday(day)
+          const selDay   = selectedDate && isSameDay(day, selectedDate)
           const isSun    = di === 0
           const isSat    = di === 6
           const dayEvs   = getEventsForDay(day)
+          const visible  = dayEvs.slice(0, 6)
+          const hidden   = dayEvs.length - 6
 
           return (
             <div
-              key={dateStr}
-              className={[
-                'week-day-card',
-                isTodayD && 'today',
-                isSelD   && 'selected',
-                holiday  && 'holiday',
-                isSun    && 'sunday',
-                isSat    && 'saturday',
-              ].filter(Boolean).join(' ')}
+              key={ds}
+              className={['wv-card', todayDay && 'wv-today', selDay && 'wv-selected', holiday && 'wv-holiday'].filter(Boolean).join(' ')}
               onPointerUp={() => onDayClick(day, {})}
             >
-              {/* 날짜 헤더 */}
-              <div className="week-card-header">
-                <div className="week-card-day-label">
-                  {DAY_LABELS[di]}
-                </div>
-                <div className={`week-card-date-num ${isTodayD ? 'today-circle' : ''}`}>
+              {/* 카드 헤더 */}
+              <div className="wv-card-head">
+                <span className={['wv-dow', isSun && 'wv-sun', isSat && 'wv-sat'].filter(Boolean).join(' ')}>
+                  {DAY_KO[di]}
+                </span>
+                <span className={['wv-num', todayDay && 'wv-num-today', isSun && 'wv-sun', isSat && 'wv-sat'].filter(Boolean).join(' ')}>
                   {format(day, 'd')}
-                </div>
+                </span>
                 {holiday && (
-                  <div className="week-card-holiday">{holiday}</div>
+                  <span className="wv-holiday-badge">{holiday.length > 5 ? holiday.slice(0,4)+'…' : holiday}</span>
                 )}
               </div>
 
-              {/* 근무자 칩 목록 */}
-              <div className="week-card-events">
-                {dayEvs.length === 0 ? (
-                  <div className="week-card-empty">근무자 없음</div>
-                ) : (
-                  dayEvs.slice(0, 6).map(ev => {
-                    const user  = users.find(u => u.id === ev.user_id)
-                    const color = user?.color || ev.color || '#4F8EF7'
-                    const timeStr = formatTime(ev.start_time, ev.end_time)
-                    return (
-                      <div
-                        key={ev.id}
-                        className="week-card-chip"
-                        style={{ backgroundColor: color }}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onPointerUp={(e) => { e.stopPropagation(); onEventClick(ev) }}
-                        title={ev.assignee}
-                      >
-                        {timeStr && <span className="chip-time">{timeStr} </span>}
-                        {ev.assignee}
-                      </div>
-                    )
-                  })
+              {/* 근무자 칩 */}
+              <div className="wv-chips">
+                {dayEvs.length === 0 && (
+                  <span className="wv-empty">근무자 없음</span>
                 )}
-                {dayEvs.length > 6 && (
-                  <div className="week-card-more">+{dayEvs.length - 6}명</div>
-                )}
+                {visible.map(ev => {
+                  const user  = users.find(u => u.id === ev.user_id)
+                  const color = user?.color || ev.color || '#4F8EF7'
+                  const t     = formatTime(ev.start_time, ev.end_time)
+                  return (
+                    <div key={ev.id} className="wv-chip"
+                      style={{ backgroundColor: color }}
+                      onPointerDown={e => e.stopPropagation()}
+                      onPointerUp={e => { e.stopPropagation(); onEventClick(ev) }}>
+                      {t && <span className="wv-chip-time">{t} </span>}
+                      {ev.assignee}
+                    </div>
+                  )
+                })}
+                {hidden > 0 && <div className="wv-more">+{hidden}명</div>}
               </div>
 
-              {/* 추가 버튼 */}
-              <button
-                className="week-card-add"
-                onPointerDown={(e) => e.stopPropagation()}
-                onPointerUp={(e) => { e.stopPropagation(); onAddEvent(day) }}
-                title="일정 추가"
-              >
-                <Plus size={14} />
+              {/* + 버튼 */}
+              <button className="wv-add"
+                onPointerDown={e => e.stopPropagation()}
+                onPointerUp={e => { e.stopPropagation(); onAddEvent(day) }}>
+                <Plus size={13} />
               </button>
             </div>
           )

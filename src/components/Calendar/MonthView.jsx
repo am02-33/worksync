@@ -1,11 +1,19 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, isToday, isSameDay } from 'date-fns'
 import { sortSchedulesByUserName } from '../../utils/sortUsers'
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 const MAX_VISIBLE = 6
+const LONG_PRESS_MS = 800
 
-export default function MonthView({ currentDate, events, users, sortBy, onDayClick, onEventClick, selectedDate, highlightUserId, swapFirstEvent, getHolidayName }) {
+export default function MonthView({
+  currentDate, events, users, sortBy,
+  onDayClick, onLongPress, onEventClick,
+  selectedDate, highlightUserId, swapFirstEvent,
+  getHolidayName, selectedDates,
+}) {
+  const longPressTimer = useRef(null)
+
   const weeks = useMemo(() => {
     const monthStart = startOfMonth(currentDate)
     const monthEnd = endOfMonth(currentDate)
@@ -20,8 +28,26 @@ export default function MonthView({ currentDate, events, users, sortBy, onDayCli
   const getEventsForDay = (date) => {
     const dateStr = format(date, 'yyyy-MM-dd')
     const dayEvs = events.filter(e => e.date === dateStr)
-    // 이름 기준 정렬
     return sortSchedulesByUserName(dayEvs, users, sortBy)
+  }
+
+  const handleMouseDown = (day) => {
+    // 모바일 long-press 시작
+    longPressTimer.current = setTimeout(() => {
+      onLongPress(day)
+    }, LONG_PRESS_MS)
+  }
+
+  const handleMouseUp = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
+
+  const handleClick = (e, day) => {
+    // long-press 중이면 클릭 무시
+    onDayClick(day, e.shiftKey)
   }
 
   return (
@@ -39,6 +65,7 @@ export default function MonthView({ currentDate, events, users, sortBy, onDayCli
             const isCurrentMonth = isSameMonth(day, currentDate)
             const isTodayDate = isToday(day)
             const isSelected = selectedDate && isSameDay(day, selectedDate)
+            const isMultiSelected = selectedDates.includes(dateStr)
             const dayEvents = getEventsForDay(day)
             const isSun = di === 0
             const isSat = di === 6
@@ -53,15 +80,22 @@ export default function MonthView({ currentDate, events, users, sortBy, onDayCli
                   'day-cell',
                   !isCurrentMonth && 'other-month',
                   isTodayDate && 'today',
-                  isSelected && 'selected',
+                  isSelected && !isMultiSelected && 'selected',
+                  isMultiSelected && 'multi-selected',
                   (holiday || isSun) && 'holiday-day',
                   isSat && 'saturday-day',
                   hasHighlight && 'highlight-cell',
                 ].filter(Boolean).join(' ')}
-                onClick={() => onDayClick(day)}
+                onClick={(e) => handleClick(e, day)}
+                onMouseDown={() => handleMouseDown(day)}
+                onMouseUp={handleMouseUp}
+                onTouchStart={() => handleMouseDown(day)}
+                onTouchEnd={handleMouseUp}
+                onTouchCancel={handleMouseUp}
               >
                 <div className="day-number-row">
                   <span className="day-number">{format(day, 'd')}</span>
+                  {isMultiSelected && <span className="multi-check">✓</span>}
                   {holiday && isCurrentMonth && (
                     <span className="holiday-label" title={holiday}>
                       {holiday.length > 5 ? holiday.slice(0, 4) + '…' : holiday}
@@ -87,7 +121,7 @@ export default function MonthView({ currentDate, events, users, sortBy, onDayCli
                     )
                   })}
                   {hiddenCount > 0 && (
-                    <div className="event-more" onClick={(e) => { e.stopPropagation(); onDayClick(day) }}>
+                    <div className="event-more" onClick={(e) => { e.stopPropagation(); onDayClick(day, false) }}>
                       +{hiddenCount}명 더보기
                     </div>
                   )}

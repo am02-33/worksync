@@ -2,47 +2,50 @@ import { useState } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { ArrowLeftRight, Clock, Users } from 'lucide-react'
-import { sortUsers } from '../utils/sortUsers'
+import { sortSchedulesByUserName } from '../utils/sortUsers'
 
 export default function QuickAssign({
-  selectedDate, users, groups, events,
+  selectedDate, selectedDates, multiMode,
+  users, sortedUsers, groups, events,
   onQuickAssign, onQuickAssignGroup,
   onEventClick, onAddEvent,
-  swapFirstEvent, quickMode,
-  sortBy, sortedUsers,
+  swapFirstEvent, quickMode, sortBy, onClearMulti,
 }) {
-  const [activeTab, setActiveTab] = useState('individual') // 'individual' | 'group'
+  const [activeTab, setActiveTab] = useState('individual')
 
   const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null
-  const dayEvents = dateStr ? events.filter(e => e.date === dateStr) : []
 
-  // 정렬된 순서로 이벤트 표시
-  const sortedDayEvents = dateStr ? (() => {
-    const evs = events.filter(e => e.date === dateStr)
-    return evs.sort((a, b) => {
-      const ai = sortedUsers.findIndex(u => u.id === a.user_id)
-      const bi = sortedUsers.findIndex(u => u.id === b.user_id)
-      if (ai !== bi) return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi)
-      return (a.start_time || '').localeCompare(b.start_time || '')
-    })
-  })() : []
+  // 표시할 이벤트: 다중 선택이면 선택된 날들 전부, 단일이면 해당 날
+  const displayEvents = (() => {
+    if (selectedDates.length > 0) {
+      const evs = events.filter(e => selectedDates.includes(e.date))
+      return sortSchedulesByUserName(evs, users, sortBy)
+    }
+    if (dateStr) {
+      const evs = events.filter(e => e.date === dateStr)
+      return sortSchedulesByUserName(evs, users, sortBy)
+    }
+    const today = format(new Date(), 'yyyy-MM-dd')
+    return events.filter(e => e.date >= today).slice(0, 10)
+  })()
 
-  const upcomingEvents = !selectedDate
-    ? events.filter(e => e.date >= format(new Date(), 'yyyy-MM-dd')).slice(0, 10)
-    : []
+  const title = selectedDates.length > 1
+    ? `${selectedDates.length}개 날짜 선택됨`
+    : selectedDate
+      ? format(selectedDate, 'M월 d일 (EEE)', { locale: ko })
+      : '다가오는 일정'
 
-  const displayEvents = selectedDate ? sortedDayEvents : upcomingEvents
-  const title = selectedDate ? format(selectedDate, 'M월 d일 (EEE)', { locale: ko }) : '다가오는 일정'
+  const hasDateSelected = selectedDate || selectedDates.length > 0
 
   return (
     <aside className="event-list">
       <div className="event-list-header">
-        <h3 className="event-list-title">{title}</h3>
+        <h3 className="event-list-title" style={{ fontSize: selectedDates.length > 1 ? '13px' : '14px' }}>{title}</h3>
         <button className="event-list-add" onClick={onAddEvent}>＋</button>
       </div>
 
       {/* 빠른 배정 패널 */}
-      {selectedDate && (
+      {hasDateSelected && (
         <div className="quick-user-panel">
           {/* 개인/그룹 탭 */}
           {groups.length > 0 && (
@@ -53,7 +56,9 @@ export default function QuickAssign({
           )}
 
           <div className="quick-user-label">
-            {quickMode ? '⚡ 클릭하면 즉시 배정' : '클릭하여 배정'}
+            {selectedDates.length > 1
+              ? `⚡ ${selectedDates.length}개 날짜에 일괄 배정`
+              : quickMode ? '⚡ 클릭하면 즉시 배정' : '클릭하여 배정'}
           </div>
 
           {/* 개인 버튼 */}
@@ -64,8 +69,8 @@ export default function QuickAssign({
                   key={user.id}
                   className="quick-user-btn"
                   style={{ backgroundColor: user.color, color: '#fff' }}
-                  onClick={() => onQuickAssign(format(selectedDate, 'yyyy-MM-dd'), user)}
-                  title={`${user.name} 즉시 배정`}
+                  onClick={() => onQuickAssign(dateStr, user)}
+                  title={selectedDates.length > 1 ? `${selectedDates.length}개 날짜에 ${user.name} 배정` : `${user.name} 즉시 배정`}
                 >
                   {user.name}
                 </button>
@@ -86,7 +91,7 @@ export default function QuickAssign({
                     key={group.id}
                     className="quick-group-btn"
                     style={{ backgroundColor: group.color, color: '#fff' }}
-                    onClick={() => onQuickAssignGroup(format(selectedDate, 'yyyy-MM-dd'), group, members)}
+                    onClick={() => onQuickAssignGroup(dateStr, group, members)}
                     title={`${group.name} 전원 배정 (${members.length}명)`}
                   >
                     <Users size={12} style={{ marginRight: '4px' }} />
@@ -96,6 +101,13 @@ export default function QuickAssign({
                 )
               })}
             </div>
+          )}
+
+          {/* 다중 선택 해제 버튼 */}
+          {selectedDates.length > 1 && (
+            <button className="btn btn-ghost" style={{ width: '100%', marginTop: '6px', fontSize: '12px' }} onClick={onClearMulti}>
+              선택 해제 ({selectedDates.length}개)
+            </button>
           )}
         </div>
       )}
@@ -112,7 +124,7 @@ export default function QuickAssign({
       {displayEvents.length === 0 ? (
         <div className="event-list-empty">
           <div className="empty-icon">📅</div>
-          <p>{selectedDate ? '이 날 일정이 없습니다' : '다가오는 일정이 없습니다'}</p>
+          <p>{hasDateSelected ? '이 날 일정이 없습니다' : '다가오는 일정이 없습니다'}</p>
           <button className="btn btn-outline-sm" onClick={onAddEvent}>일정 추가</button>
         </div>
       ) : (
@@ -131,6 +143,9 @@ export default function QuickAssign({
                     {isSwapSelected && <span style={{ fontSize: '10px', color: '#F59E0B' }}>선택됨</span>}
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{event.title}</div>
+                  {selectedDates.length > 1 && (
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>📅 {event.date}</div>
+                  )}
                   {event.start_time && (
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
                       <Clock size={10} /> {event.start_time.slice(0, 5)}{event.end_time && `~${event.end_time.slice(0, 5)}`}

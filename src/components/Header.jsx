@@ -6,7 +6,8 @@ import { SORT_OPTIONS } from '../utils/sortUsers'
 export default function Header({
   currentDate, viewMode, onDateChange, onViewModeChange,
   onAddEvent, onUserManager, onGroupManager, onHolidayManager,
-  quickMode, onQuickModeToggle, sortBy, onSortChange, onDeleteAll,
+  quickMode, onQuickModeToggle, sortBy, onSortChange,
+  onDeleteDayEvents, selectedDate,
 }) {
   const goNext = () => viewMode === 'year' ? onDateChange(addYears(currentDate, 1)) : onDateChange(addMonths(currentDate, 1))
   const goPrev = () => viewMode === 'year' ? onDateChange(subYears(currentDate, 1)) : onDateChange(subMonths(currentDate, 1))
@@ -18,11 +19,9 @@ export default function Header({
     return format(currentDate, 'yyyy년 M월 d일 (EEE)', { locale: ko })
   }
 
-  const handleDeleteAll = () => {
-    if (!window.confirm('정말 모든 일정을 삭제할까요?\n(사용자·그룹 정보는 삭제되지 않습니다)')) return
-    if (!window.confirm('⚠️ 삭제하면 복구할 수 없습니다.\n그래도 삭제할까요?')) return
-    onDeleteAll()
-  }
+  const deleteBtnLabel = selectedDate
+    ? `${format(selectedDate, 'M/d')} 일정 삭제`
+    : '날짜 선택 후 삭제'
 
   return (
     <header className="header">
@@ -65,7 +64,17 @@ export default function Header({
           <button className="icon-btn" onClick={onHolidayManager} title="공휴일 관리"><CalendarDays size={15} /></button>
           <button className="icon-btn" onClick={onGroupManager} title="그룹 관리"><Tag size={15} /></button>
           <button className="icon-btn" onClick={onUserManager} title="사용자 관리"><Users size={15} /></button>
-          <button className="icon-btn danger-icon" onClick={handleDeleteAll} title="전체 일정 삭제"><Trash2 size={15} /></button>
+
+          {/* 이 날짜 일정 삭제 버튼 */}
+          <button
+            className={`delete-day-btn ${!selectedDate ? 'disabled' : ''}`}
+            onClick={onDeleteDayEvents}
+            disabled={!selectedDate}
+            title={deleteBtnLabel}
+          >
+            <Trash2 size={13} />
+            <span className="delete-day-text">{deleteBtnLabel}</span>
+          </button>
 
           <button className="add-btn" onClick={onAddEvent}>
             <span>＋</span>

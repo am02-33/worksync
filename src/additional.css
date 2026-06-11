@@ -1,27 +1,88 @@
-/* index.css 맨 아래에 추가할 CSS */
+/* index.css 맨 아래에 추가 (기존 additional.css 대체) */
 
-/* 삭제 아이콘 버튼 (빨간색) */
-.icon-btn.danger-icon {
-  color: rgba(239,68,68,.7);
+/* ===== 다중 선택 배너 ===== */
+.multi-select-banner {
+  background: #4F46E5;
+  color: #fff;
+  padding: 7px 16px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 90;
 }
-.icon-btn.danger-icon:hover {
+.multi-banner-btn {
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,.4);
+  background: transparent;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background .15s;
+}
+.multi-banner-btn:hover { background: rgba(255,255,255,.2); }
+.multi-banner-btn.danger { border-color: rgba(239,68,68,.6); color: #FCA5A5; }
+.multi-banner-btn.danger:hover { background: rgba(239,68,68,.2); }
+
+/* ===== 다중 선택 날짜 강조 ===== */
+.day-cell.multi-selected {
+  background: #EEF2FF !important;
+  outline: 2px solid #4F46E5;
+  outline-offset: -2px;
+}
+.day-cell.multi-selected .day-number {
+  color: #4F46E5;
+  font-weight: 800;
+}
+.multi-check {
+  font-size: 11px;
+  color: #4F46E5;
+  font-weight: 800;
+  margin-left: 2px;
+}
+
+/* 연간 보기 다중 선택 */
+.mini-day.mini-multi-selected {
+  background: #EEF2FF !important;
+  outline: 1px solid #4F46E5;
+  border-radius: 3px;
+}
+.mini-day.mini-multi-selected .mini-day-num {
+  color: #4F46E5;
+  font-weight: 800;
+}
+
+/* ===== 이 날짜 삭제 버튼 ===== */
+.delete-day-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(239,68,68,.4);
+  background: transparent;
+  color: rgba(239,68,68,.7);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.delete-day-btn:not(.disabled):hover {
   background: rgba(239,68,68,.1);
   color: #EF4444;
   border-color: #EF4444;
 }
-
-/* HEX 입력 오류 */
-.input-error {
-  border-color: #EF4444 !important;
-  box-shadow: 0 0 0 3px rgba(239,68,68,.1) !important;
+.delete-day-btn.disabled {
+  opacity: .35;
+  cursor: not-allowed;
 }
 
-/* 공휴일 관리 스피너 */
-.spinning {
-  animation: spin .7s linear infinite;
-}
-
-/* 정렬 선택 */
+/* ===== 정렬 선택 ===== */
 .sort-select {
   padding: 5px 8px;
   border: 1px solid rgba(255,255,255,.2);
@@ -33,12 +94,9 @@
   cursor: pointer;
   outline: none;
 }
-.sort-select option {
-  background: #1A1A2E;
-  color: #fff;
-}
+.sort-select option { background: #1A1A2E; color: #fff; }
 
-/* 개인/그룹 탭 */
+/* ===== 개인/그룹 탭 ===== */
 .quick-tabs {
   display: flex;
   border: 1px solid var(--border);
@@ -47,37 +105,40 @@
   margin-bottom: 8px;
 }
 .quick-tab {
-  flex: 1;
-  padding: 5px 0;
-  font-size: 12px;
-  font-weight: 700;
-  font-family: var(--font);
-  border: none;
-  background: var(--surface);
-  cursor: pointer;
-  color: var(--text-secondary);
-  transition: all .15s;
+  flex: 1; padding: 5px 0; font-size: 12px; font-weight: 700;
+  font-family: var(--font); border: none; background: var(--surface);
+  cursor: pointer; color: var(--text-secondary); transition: all .15s;
 }
 .quick-tab.active { background: var(--accent-light); color: #fff; }
 .quick-tab:not(.active):hover { background: var(--surface-2); }
 
-/* 그룹 배정 버튼 */
+/* ===== 그룹 배정 버튼 ===== */
 .quick-group-btn {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: 20px;
-  border: none;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: var(--font);
-  transition: opacity .12s, transform .12s;
+  display: inline-flex; align-items: center;
+  padding: 6px 12px; border-radius: 20px; border: none;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  font-family: var(--font); transition: opacity .12s, transform .12s;
 }
 .quick-group-btn:hover { opacity: .85; transform: scale(1.04); }
 
-/* 모바일 */
+/* ===== HEX 입력 오류 ===== */
+.input-error {
+  border-color: #EF4444 !important;
+  box-shadow: 0 0 0 3px rgba(239,68,68,.1) !important;
+}
+
+/* ===== 공휴일 관리 스피너 ===== */
+.spinning { animation: spin .7s linear infinite; }
+
+/* ===== 모바일 ===== */
 @media (max-width: 768px) {
   .sort-select { font-size: 11px; padding: 4px 6px; }
   .quick-group-btn { padding: 7px 12px; font-size: 12px; }
+  .delete-day-text { display: none; }
+  .delete-day-btn { padding: 5px 8px; }
+  .multi-select-banner { font-size: 12px; padding: 6px 10px; }
+}
+
+@media (max-width: 480px) {
+  .quick-btn-text { display: none; }
 }

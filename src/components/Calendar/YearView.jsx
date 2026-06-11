@@ -1,11 +1,13 @@
-import { useMemo } from 'react'
+import { useRef } from 'react'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday } from 'date-fns'
 import { sortSchedulesByUserName } from '../../utils/sortUsers'
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
+const LONG_PRESS_MS = 800
 
-function MiniMonth({ year, month, events, users, sortBy, onDayClick, highlightUserId, getHolidayName }) {
+function MiniMonth({ year, month, events, users, sortBy, onDayClick, onLongPress, highlightUserId, getHolidayName, selectedDates }) {
+  const longPressTimer = useRef(null)
   const monthDate = new Date(year, month - 1, 1)
   const days = eachDayOfInterval({
     start: startOfWeek(startOfMonth(monthDate), { weekStartsOn: 0 }),
@@ -15,6 +17,13 @@ function MiniMonth({ year, month, events, users, sortBy, onDayClick, highlightUs
   const getEventsForDay = (dateStr) => {
     const evs = events.filter(e => e.date === dateStr)
     return sortSchedulesByUserName(evs, users, sortBy)
+  }
+
+  const handleTouchStart = (day) => {
+    longPressTimer.current = setTimeout(() => onLongPress(day), LONG_PRESS_MS)
+  }
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
   }
 
   return (
@@ -34,6 +43,7 @@ function MiniMonth({ year, month, events, users, sortBy, onDayClick, highlightUs
           const isSun = day.getDay() === 0
           const isSat = day.getDay() === 6
           const isHighlight = highlightUserId && dayEvents.some(e => e.user_id === highlightUserId)
+          const isMultiSelected = selectedDates.includes(dateStr)
 
           return (
             <div
@@ -45,11 +55,18 @@ function MiniMonth({ year, month, events, users, sortBy, onDayClick, highlightUs
                 (holiday || isSun) && 'hol',
                 isSat && 'sat',
                 isHighlight && 'highlighted',
+                isMultiSelected && 'mini-multi-selected',
               ].filter(Boolean).join(' ')}
-              onClick={() => inMonth && onDayClick(day)}
+              onClick={(e) => inMonth && onDayClick(day, e.shiftKey)}
+              onTouchStart={() => inMonth && handleTouchStart(day)}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
               title={holiday || ''}
             >
-              <span className="mini-day-num">{format(day, 'd')}</span>
+              <span className="mini-day-num">
+                {format(day, 'd')}
+                {isMultiSelected && <span style={{ fontSize: '7px', marginLeft: '1px' }}>✓</span>}
+              </span>
               {inMonth && dayEvents.length > 0 && (
                 <div className="mini-dots">
                   {dayEvents.slice(0, 4).map((ev, i) => {
@@ -71,7 +88,7 @@ function MiniMonth({ year, month, events, users, sortBy, onDayClick, highlightUs
   )
 }
 
-export default function YearView({ currentDate, events, users, sortBy, onDayClick, highlightUserId, getHolidayName }) {
+export default function YearView({ currentDate, events, users, sortBy, onDayClick, onLongPress, highlightUserId, getHolidayName, selectedDates }) {
   const year = currentDate.getFullYear()
   return (
     <div className="year-view">
@@ -79,8 +96,9 @@ export default function YearView({ currentDate, events, users, sortBy, onDayClic
         {MONTHS.map(month => (
           <MiniMonth key={month} year={year} month={month}
             events={events} users={users} sortBy={sortBy}
-            onDayClick={onDayClick} highlightUserId={highlightUserId}
-            getHolidayName={getHolidayName} />
+            onDayClick={onDayClick} onLongPress={onLongPress}
+            highlightUserId={highlightUserId} getHolidayName={getHolidayName}
+            selectedDates={selectedDates} />
         ))}
       </div>
     </div>

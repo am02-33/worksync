@@ -8,23 +8,22 @@ const LONG_PRESS_MS = 800
 
 function MiniMonth({ year, month, events, users, sortBy, onDayClick, onLongPress, highlightUserId, getHolidayName, selectedDates }) {
   const longPressTimer = useRef(null)
+  const longPressTriggered = useRef(false)
   const monthDate = new Date(year, month - 1, 1)
   const days = eachDayOfInterval({
     start: startOfWeek(startOfMonth(monthDate), { weekStartsOn: 0 }),
     end: endOfWeek(endOfMonth(monthDate), { weekStartsOn: 0 }),
   })
 
-  const getEventsForDay = (dateStr) => {
-    const evs = events.filter(e => e.date === dateStr)
-    return sortSchedulesByUserName(evs, users, sortBy)
-  }
+  const getEventsForDay = (dateStr) => sortSchedulesByUserName(
+    events.filter(e => e.date === dateStr), users, sortBy
+  )
 
-  const handleTouchStart = (day) => {
-    longPressTimer.current = setTimeout(() => onLongPress(day), LONG_PRESS_MS)
+  const startLP = (day) => {
+    longPressTriggered.current = false
+    longPressTimer.current = setTimeout(() => { longPressTriggered.current = true; onLongPress(day) }, LONG_PRESS_MS)
   }
-  const handleTouchEnd = () => {
-    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
-  }
+  const cancelLP = () => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null } }
 
   return (
     <div className="mini-month">
@@ -57,27 +56,22 @@ function MiniMonth({ year, month, events, users, sortBy, onDayClick, onLongPress
                 isHighlight && 'highlighted',
                 isMultiSelected && 'mini-multi-selected',
               ].filter(Boolean).join(' ')}
-              onClick={(e) => inMonth && onDayClick(day, e.shiftKey)}
-              onTouchStart={() => inMonth && handleTouchStart(day)}
-              onTouchEnd={handleTouchEnd}
-              onTouchCancel={handleTouchEnd}
+              onClick={(e) => { if (!longPressTriggered.current && inMonth) onDayClick(day, { shiftKey: e.shiftKey, ctrlKey: e.ctrlKey }) }}
+              onMouseDown={() => inMonth && startLP(day)}
+              onMouseUp={cancelLP}
+              onTouchStart={() => inMonth && startLP(day)}
+              onTouchEnd={cancelLP}
+              onTouchCancel={cancelLP}
               title={holiday || ''}
             >
-              <span className="mini-day-num">
-                {format(day, 'd')}
-                {isMultiSelected && <span style={{ fontSize: '7px', marginLeft: '1px' }}>✓</span>}
-              </span>
+              <span className="mini-day-num">{format(day, 'd')}</span>
               {inMonth && dayEvents.length > 0 && (
                 <div className="mini-dots">
-                  {dayEvents.slice(0, 4).map((ev, i) => {
+                  {dayEvents.slice(0, 3).map((ev, i) => {
                     const user = users.find(u => u.id === ev.user_id)
-                    return (
-                      <span key={i} className="mini-dot"
-                        style={{ backgroundColor: user?.color || ev.color || '#4F8EF7' }}
-                        title={ev.assignee} />
-                    )
+                    return <span key={i} className="mini-dot" style={{ backgroundColor: user?.color || ev.color || '#4F8EF7' }} title={ev.assignee} />
                   })}
-                  {dayEvents.length > 4 && <span className="mini-dot-more">+{dayEvents.length - 4}</span>}
+                  {dayEvents.length > 3 && <span className="mini-dot-more">+{dayEvents.length - 3}</span>}
                 </div>
               )}
             </div>

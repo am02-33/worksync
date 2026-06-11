@@ -1,77 +1,147 @@
 import { format, isToday } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { getHolidayName } from '../../lib/holidays'
-import { Clock, User } from 'lucide-react'
+import { Plus, Trash2, Users } from 'lucide-react'
+import { sortSchedulesByUserName } from '../../utils/sortUsers'
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i)
+function formatTime(start, end) {
+  if (!start && !end) return null
+  if (start && end) return `${start.slice(0,5)}~${end.slice(0,5)}`
+  if (start) return start.slice(0,5)
+  if (end) return `~${end.slice(0,5)}`
+  return null
+}
 
-export default function DayView({ currentDate, events, onEventClick, onAddEvent }) {
-  const dateStr = format(currentDate, 'yyyy-MM-dd')
-  const year = currentDate.getFullYear()
-  const holiday = getHolidayName(dateStr, year)
-  const dayEvents = events.filter(e => e.date === dateStr)
+export default function DayView({
+  currentDate, events, users, sortBy,
+  onEventClick, onAddEvent, getHolidayName,
+  onQuickAssign, onQuickAssignGroup, groups, onDeleteDay,
+}) {
+  const dateStr   = format(currentDate, 'yyyy-MM-dd')
+  const holiday   = getHolidayName(dateStr)
+  const isTodayD  = isToday(currentDate)
+  const dayEvents = sortSchedulesByUserName(
+    events.filter(e => e.date === dateStr), users, sortBy
+  )
 
   return (
-    <div className="day-view">
+    <div className="day-view-card">
       {/* 날짜 헤더 */}
-      <div className={`day-view-header ${isToday(currentDate) ? 'today' : ''} ${holiday ? 'holiday-day' : ''}`}>
-        <div className="day-view-date">
-          {format(currentDate, 'M월 d일 (EEE)', { locale: ko })}
+      <div className={`day-card-header ${isTodayD ? 'today' : ''} ${holiday ? 'holiday' : ''}`}>
+        <div className="day-card-date">
+          {format(currentDate, 'yyyy년 M월 d일 (EEE)', { locale: ko })}
         </div>
-        {holiday && <div className="day-view-holiday">{holiday} 🎌</div>}
-        <div className="day-view-count">{dayEvents.length}개 일정</div>
+        {holiday && (
+          <div className="day-card-holiday">🎌 {holiday}</div>
+        )}
+        <div className="day-card-count">{dayEvents.length}명 근무</div>
       </div>
 
-      <div className="day-body">
-        {/* 시간 그리드 */}
-        <div className="day-time-col">
-          {HOURS.map(h => (
-            <div key={h} className="day-hour-label">
-              {h > 0 ? `${String(h).padStart(2, '0')}:00` : ''}
+      <div className="day-card-body">
+        {/* 왼쪽: 근무자 목록 */}
+        <div className="day-card-left">
+          <div className="day-card-section-title">근무자 목록</div>
+
+          {dayEvents.length === 0 ? (
+            <div className="day-card-empty">
+              <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
+              <div style={{ fontSize: 14, color: '#94A3B8' }}>이 날 등록된 일정이 없습니다</div>
+              <button className="btn btn-outline-sm" style={{ marginTop: 12 }}
+                onPointerUp={() => onAddEvent(currentDate)}>
+                일정 추가
+              </button>
             </div>
-          ))}
+          ) : (
+            <div className="day-event-list">
+              {dayEvents.map(ev => {
+                const user    = users.find(u => u.id === ev.user_id)
+                const color   = user?.color || ev.color || '#4F8EF7'
+                const timeStr = formatTime(ev.start_time, ev.end_time)
+                return (
+                  <div
+                    key={ev.id}
+                    className="day-event-card"
+                    style={{ borderLeftColor: color }}
+                    onPointerUp={() => onEventClick(ev)}
+                  >
+                    <div className="day-event-dot" style={{ backgroundColor: color }} />
+                    <div className="day-event-info">
+                      <div className="day-event-name">{ev.assignee}</div>
+                      {timeStr && <div className="day-event-time">{timeStr}</div>}
+                      {ev.memo && <div className="day-event-memo">{ev.memo}</div>}
+                    </div>
+                    <div style={{ color: '#CBD5E1', fontSize: 20 }}>›</div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* 하단 액션 버튼 */}
+          <div className="day-card-actions">
+            <button className="btn btn-primary" style={{ flex: 1 }}
+              onPointerUp={() => onAddEvent(currentDate)}>
+              <Plus size={16} /> 일정 추가
+            </button>
+            {dayEvents.length > 0 && (
+              <button className="btn btn-danger"
+                onPointerUp={onDeleteDay}>
+                <Trash2 size={16} /> 이 날 삭제
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="day-events-col" onClick={onAddEvent}>
-          {HOURS.map(h => (
-            <div key={h} className="day-hour-cell" />
-          ))}
+        {/* 오른쪽: 빠른 배정 패널 */}
+        <div className="day-card-right">
+          <div className="day-card-section-title">빠른 배정</div>
 
-          {dayEvents.map(event => {
-            const startH = event.start_time ? parseInt(event.start_time.split(':')[0]) : 8
-            const startM = event.start_time ? parseInt(event.start_time.split(':')[1]) : 0
-            const endH = event.end_time ? parseInt(event.end_time.split(':')[0]) : startH + 1
-            const endM = event.end_time ? parseInt(event.end_time.split(':')[1]) : startM
-
-            const top = (startH * 60 + startM) * (48 / 60)
-            const height = Math.max(((endH - startH) * 60 + (endM - startM)) * (48 / 60), 32)
-
-            return (
-              <div
-                key={event.id}
-                className="day-event"
-                style={{
-                  top: `${top}px`,
-                  height: `${height}px`,
-                  backgroundColor: event.color || '#4F8EF7',
-                }}
-                onClick={(e) => { e.stopPropagation(); onEventClick(event) }}
-              >
-                <div className="day-event-title">{event.title}</div>
-                <div className="day-event-meta">
-                  {event.start_time && (
-                    <span><Clock size={11} /> {event.start_time.slice(0, 5)}~{event.end_time?.slice(0, 5)}</span>
-                  )}
-                  {event.assignee && (
-                    <span><User size={11} /> {event.assignee}</span>
-                  )}
-                </div>
-                {event.memo && height > 60 && (
-                  <div className="day-event-memo">{event.memo}</div>
-                )}
+          {/* 개인 */}
+          {users.length > 0 && (
+            <div className="day-assign-section">
+              <div className="day-assign-label">개인</div>
+              <div className="day-assign-chips">
+                {users.map(user => (
+                  <button
+                    key={user.id}
+                    className="day-assign-chip"
+                    style={{ backgroundColor: user.color || '#4F8EF7', color: '#fff' }}
+                    onPointerUp={() => onQuickAssign(dateStr, user)}
+                    title={`${user.name} 즉시 배정`}
+                  >
+                    {user.name}
+                  </button>
+                ))}
               </div>
-            )
-          })}
+            </div>
+          )}
+
+          {/* 그룹 */}
+          {groups && groups.length > 0 && (
+            <div className="day-assign-section">
+              <div className="day-assign-label">그룹</div>
+              <div className="day-assign-chips">
+                {groups.map(group => {
+                  const members = users.filter(u => u.group_id === group.id)
+                  return (
+                    <button
+                      key={group.id}
+                      className="day-assign-chip group-chip"
+                      style={{ backgroundColor: group.color || '#6366F1', color: '#fff' }}
+                      onPointerUp={() => onQuickAssignGroup(dateStr, group, members)}
+                    >
+                      <Users size={13} /> {group.name} ({members.length}명)
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {users.length === 0 && (
+            <div style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', padding: '20px 0' }}>
+              👥 사용자를 먼저 등록하세요
+            </div>
+          )}
         </div>
       </div>
     </div>

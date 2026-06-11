@@ -4,32 +4,37 @@ import { X, Trash2, Save, ArrowLeftRight } from 'lucide-react'
 
 const DEFAULT_FORM = {
   title: '', user_id: '', assignee: '', date: '',
-  start_time: '', end_time: '', memo: '', color: '#4F8EF7', category: '근무',
+  start_time: '', end_time: '',   // 빈 문자열 = 선택 안 함
+  memo: '', color: '#4F8EF7', category: '근무',
 }
 
-export default function EventModal({ isOpen, onClose, onSave, onDelete, onSwapStart, event, defaultDate, users }) {
-  const [form, setForm] = useState(DEFAULT_FORM)
+export default function EventModal({
+  isOpen, onClose, onSave, onDelete, onSwapStart, event, defaultDate, users,
+}) {
+  const [form, setForm]     = useState(DEFAULT_FORM)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError]   = useState('')
 
   useEffect(() => {
     if (!isOpen) return
     if (event) {
       setForm({
-        title: event.title || '',
-        user_id: event.user_id || '',
-        assignee: event.assignee || '',
-        date: event.date || '',
+        title:      event.title      || '',
+        user_id:    event.user_id    || '',
+        assignee:   event.assignee   || '',
+        date:       event.date       || '',
         start_time: event.start_time || '',
-        end_time: event.end_time || '',
-        memo: event.memo || '',
-        color: event.color || '#4F8EF7',
-        category: event.category || '근무',
+        end_time:   event.end_time   || '',
+        memo:       event.memo       || '',
+        color:      event.color      || '#4F8EF7',
+        category:   event.category   || '근무',
       })
     } else {
       setForm({
         ...DEFAULT_FORM,
-        date: defaultDate ? format(defaultDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+        date: defaultDate
+          ? (defaultDate instanceof Date ? format(defaultDate, 'yyyy-MM-dd') : defaultDate)
+          : format(new Date(), 'yyyy-MM-dd'),
       })
     }
     setError('')
@@ -40,10 +45,10 @@ export default function EventModal({ isOpen, onClose, onSave, onDelete, onSwapSt
   const handleUserSelect = (user) => {
     setForm(prev => ({
       ...prev,
-      user_id: user.id,
+      user_id:  user.id,
       assignee: user.name,
-      color: user.color,
-      title: prev.title || `${user.name} 근무`,
+      color:    user.color,
+      title:    prev.title || `${user.name} 근무`,
     }))
   }
 
@@ -51,11 +56,19 @@ export default function EventModal({ isOpen, onClose, onSave, onDelete, onSwapSt
 
   const handleSubmit = async () => {
     if (!form.assignee.trim()) { setError('담당자를 선택하세요.'); return }
-    if (!form.date) { setError('날짜를 선택하세요.'); return }
-    if (!form.title.trim()) { setError('제목을 입력하세요.'); return }
+    if (!form.date)            { setError('날짜를 선택하세요.'); return }
+    if (!form.title.trim())    { setError('제목을 입력하세요.'); return }
+    // 시간은 필수 아님
+
     setSaving(true)
     setError('')
-    const result = await onSave(form)
+    // null 처리: 빈 문자열은 null로 저장
+    const saveData = {
+      ...form,
+      start_time: form.start_time || null,
+      end_time:   form.end_time   || null,
+    }
+    const result = await onSave(saveData)
     setSaving(false)
     if (result?.success === false) setError(result.error || '저장 실패')
     else onClose()
@@ -69,25 +82,20 @@ export default function EventModal({ isOpen, onClose, onSave, onDelete, onSwapSt
     onClose()
   }
 
-  const handleSwap = () => {
-    onSwapStart(event)
-    onClose()
-  }
-
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header" style={{ borderLeftColor: form.color }}>
+    <div className="modal-overlay" onPointerUp={onClose}>
+      <div className="modal" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="modal-header" style={{ borderLeftColor: form.color, borderLeftWidth: 4, borderLeftStyle: 'solid' }}>
           <h2 className="modal-title">{event ? '일정 수정' : '새 일정 추가'}</h2>
-          <button className="modal-close" onClick={onClose}><X size={18} /></button>
+          <button className="modal-close" onPointerUp={onClose}><X size={18} /></button>
         </div>
 
         <div className="modal-body">
           {error && <div className="form-error">{error}</div>}
 
-          {/* 담당자 선택 버튼 */}
+          {/* 담당자 선택 */}
           <div className="form-group">
-            <label className="form-label">담당자 선택 *</label>
+            <label className="form-label">담당자 *</label>
             <div className="user-btn-grid">
               {users.map(user => (
                 <button
@@ -98,21 +106,16 @@ export default function EventModal({ isOpen, onClose, onSave, onDelete, onSwapSt
                     borderColor: user.color,
                     color: form.user_id === user.id ? '#fff' : user.color,
                   }}
-                  onClick={() => handleUserSelect(user)}
+                  onPointerUp={() => handleUserSelect(user)}
                 >
                   {user.name}
                 </button>
               ))}
               {users.length === 0 && (
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  먼저 사용자를 등록하세요 (👥 아이콘)
-                </p>
+                <input className="form-input" type="text" placeholder="담당자 이름 직접 입력"
+                  value={form.assignee} onChange={e => handleChange('assignee', e.target.value)} />
               )}
             </div>
-            {form.assignee && !users.find(u => u.id === form.user_id) && (
-              <input className="form-input" style={{ marginTop: '6px' }} type="text" placeholder="직접 입력"
-                value={form.assignee} onChange={e => handleChange('assignee', e.target.value)} />
-            )}
           </div>
 
           {/* 제목 */}
@@ -125,25 +128,28 @@ export default function EventModal({ isOpen, onClose, onSave, onDelete, onSwapSt
           {/* 날짜 */}
           <div className="form-group">
             <label className="form-label">날짜 *</label>
-            <input className="form-input" type="date" value={form.date} onChange={e => handleChange('date', e.target.value)} />
+            <input className="form-input" type="date" value={form.date}
+              onChange={e => handleChange('date', e.target.value)} />
           </div>
 
-          {/* 시간 */}
+          {/* 시간 — 선택 사항 */}
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">시작 시간</label>
-              <input className="form-input" type="time" value={form.start_time} onChange={e => handleChange('start_time', e.target.value)} />
+              <label className="form-label">시작 시간 <span style={{ fontWeight: 400, color: '#94A3B8' }}>(선택)</span></label>
+              <input className="form-input" type="time" value={form.start_time}
+                onChange={e => handleChange('start_time', e.target.value)} />
             </div>
             <div className="form-group">
-              <label className="form-label">종료 시간</label>
-              <input className="form-input" type="time" value={form.end_time} onChange={e => handleChange('end_time', e.target.value)} />
+              <label className="form-label">종료 시간 <span style={{ fontWeight: 400, color: '#94A3B8' }}>(선택)</span></label>
+              <input className="form-input" type="time" value={form.end_time}
+                onChange={e => handleChange('end_time', e.target.value)} />
             </div>
           </div>
 
           {/* 메모 */}
           <div className="form-group">
-            <label className="form-label">메모</label>
-            <textarea className="form-input form-textarea" placeholder="메모 (선택)"
+            <label className="form-label">메모 <span style={{ fontWeight: 400, color: '#94A3B8' }}>(선택)</span></label>
+            <textarea className="form-input form-textarea" placeholder="메모"
               value={form.memo} onChange={e => handleChange('memo', e.target.value)} rows={2} />
           </div>
         </div>
@@ -152,18 +158,18 @@ export default function EventModal({ isOpen, onClose, onSave, onDelete, onSwapSt
           <div style={{ display: 'flex', gap: '8px' }}>
             {event && (
               <>
-                <button className="btn btn-danger" onClick={handleDelete} disabled={saving}>
+                <button className="btn btn-danger" onPointerUp={handleDelete} disabled={saving}>
                   <Trash2 size={15} /> 삭제
                 </button>
-                <button className="btn btn-swap" onClick={handleSwap} disabled={saving}>
+                <button className="btn btn-swap" onPointerUp={() => { onSwapStart(event); onClose() }} disabled={saving}>
                   <ArrowLeftRight size={15} /> 교체
                 </button>
               </>
             )}
           </div>
           <div className="modal-footer-right">
-            <button className="btn btn-ghost" onClick={onClose} disabled={saving}>취소</button>
-            <button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
+            <button className="btn btn-ghost" onPointerUp={onClose} disabled={saving}>취소</button>
+            <button className="btn btn-primary" onPointerUp={handleSubmit} disabled={saving}>
               <Save size={15} /> {saving ? '저장 중…' : (event ? '수정' : '추가')}
             </button>
           </div>

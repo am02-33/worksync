@@ -1,13 +1,26 @@
 import { useMemo } from 'react'
 import { startOfWeek, addDays, format, isToday, isSameDay } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { getHolidayName } from '../../lib/holidays'
+import { Plus } from 'lucide-react'
+import { sortSchedulesByUserName } from '../../utils/sortUsers'
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i)
+const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 
-export default function WeekView({ currentDate, events, onDayClick, onEventClick, selectedDate }) {
-  const year = currentDate.getFullYear()
+// 시간 표시 유틸
+function formatTime(start, end) {
+  if (!start && !end) return null
+  if (start && end) return `${start.slice(0,5)}~${end.slice(0,5)}`
+  if (start) return start.slice(0,5)
+  if (end) return `~${end.slice(0,5)}`
+  return null
+}
 
+export default function WeekView({
+  currentDate, events, users, sortBy,
+  onDayClick, onEventClick, selectedDate,
+  getHolidayName, onAddEvent,
+  onQuickAssign, onQuickAssignGroup, groups,
+}) {
   const weekDays = useMemo(() => {
     const start = startOfWeek(currentDate, { weekStartsOn: 0 })
     return Array.from({ length: 7 }, (_, i) => addDays(start, i))
@@ -15,92 +28,86 @@ export default function WeekView({ currentDate, events, onDayClick, onEventClick
 
   const getEventsForDay = (date) => {
     const dateStr = format(date, 'yyyy-MM-dd')
-    return events.filter(e => e.date === dateStr)
+    return sortSchedulesByUserName(events.filter(e => e.date === dateStr), users, sortBy)
   }
 
   return (
-    <div className="week-view">
-      {/* 헤더 행 */}
-      <div className="week-header-row">
-        <div className="week-time-gutter" />
+    <div className="week-view-card">
+      {/* 7일 카드 그리드 */}
+      <div className="week-card-grid">
         {weekDays.map((day, di) => {
-          const dateStr = format(day, 'yyyy-MM-dd')
-          const holiday = getHolidayName(dateStr, year)
-          const isSun = di === 0
-          const isSat = di === 6
+          const dateStr  = format(day, 'yyyy-MM-dd')
+          const holiday  = getHolidayName(dateStr)
+          const isTodayD = isToday(day)
+          const isSelD   = selectedDate && isSameDay(day, selectedDate)
+          const isSun    = di === 0
+          const isSat    = di === 6
+          const dayEvs   = getEventsForDay(day)
+
           return (
             <div
               key={dateStr}
               className={[
-                'week-day-header',
-                isToday(day) && 'today',
-                (holiday || isSun) && 'holiday-day',
-                isSat && 'saturday-day',
+                'week-day-card',
+                isTodayD && 'today',
+                isSelD   && 'selected',
+                holiday  && 'holiday',
+                isSun    && 'sunday',
+                isSat    && 'saturday',
               ].filter(Boolean).join(' ')}
-              onClick={() => onDayClick(day)}
+              onPointerUp={() => onDayClick(day, {})}
             >
-              <div className="week-day-name">
-                {format(day, 'EEE', { locale: ko })}
+              {/* 날짜 헤더 */}
+              <div className="week-card-header">
+                <div className="week-card-day-label">
+                  {DAY_LABELS[di]}
+                </div>
+                <div className={`week-card-date-num ${isTodayD ? 'today-circle' : ''}`}>
+                  {format(day, 'd')}
+                </div>
+                {holiday && (
+                  <div className="week-card-holiday">{holiday}</div>
+                )}
               </div>
-              <div className="week-day-num">{format(day, 'd')}</div>
-              {holiday && <div className="week-holiday-label">{holiday}</div>}
-            </div>
-          )
-        })}
-      </div>
 
-      {/* 시간 그리드 */}
-      <div className="week-body">
-        <div className="week-time-col">
-          {HOURS.map(h => (
-            <div key={h} className="week-hour-label">
-              {h > 0 ? `${String(h).padStart(2, '0')}:00` : ''}
-            </div>
-          ))}
-        </div>
+              {/* 근무자 칩 목록 */}
+              <div className="week-card-events">
+                {dayEvs.length === 0 ? (
+                  <div className="week-card-empty">근무자 없음</div>
+                ) : (
+                  dayEvs.slice(0, 6).map(ev => {
+                    const user  = users.find(u => u.id === ev.user_id)
+                    const color = user?.color || ev.color || '#4F8EF7'
+                    const timeStr = formatTime(ev.start_time, ev.end_time)
+                    return (
+                      <div
+                        key={ev.id}
+                        className="week-card-chip"
+                        style={{ backgroundColor: color }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerUp={(e) => { e.stopPropagation(); onEventClick(ev) }}
+                        title={ev.assignee}
+                      >
+                        {timeStr && <span className="chip-time">{timeStr} </span>}
+                        {ev.assignee}
+                      </div>
+                    )
+                  })
+                )}
+                {dayEvs.length > 6 && (
+                  <div className="week-card-more">+{dayEvs.length - 6}명</div>
+                )}
+              </div>
 
-        {weekDays.map((day, di) => {
-          const dateStr = format(day, 'yyyy-MM-dd')
-          const dayEvents = getEventsForDay(day)
-
-          return (
-            <div
-              key={dateStr}
-              className={`week-day-col ${di === 0 ? 'sunday' : di === 6 ? 'saturday' : ''}`}
-              onClick={() => onDayClick(day)}
-            >
-              {HOURS.map(h => (
-                <div key={h} className="week-hour-cell" />
-              ))}
-
-              {dayEvents.map(event => {
-                const startH = event.start_time ? parseInt(event.start_time.split(':')[0]) : 0
-                const startM = event.start_time ? parseInt(event.start_time.split(':')[1]) : 0
-                const endH = event.end_time ? parseInt(event.end_time.split(':')[0]) : startH + 1
-                const endM = event.end_time ? parseInt(event.end_time.split(':')[1]) : startM
-
-                const top = (startH * 60 + startM) * (48 / 60)
-                const height = Math.max(((endH - startH) * 60 + (endM - startM)) * (48 / 60), 24)
-
-                return (
-                  <div
-                    key={event.id}
-                    className="week-event"
-                    style={{
-                      top: `${top}px`,
-                      height: `${height}px`,
-                      backgroundColor: event.color || '#4F8EF7',
-                    }}
-                    onClick={(e) => { e.stopPropagation(); onEventClick(event) }}
-                    title={event.title}
-                  >
-                    <div className="week-event-title">{event.title}</div>
-                    {event.assignee && (
-                      <div className="week-event-assignee">{event.assignee}</div>
-                    )}
-                  </div>
-                )
-              })}
+              {/* 추가 버튼 */}
+              <button
+                className="week-card-add"
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => { e.stopPropagation(); onAddEvent(day) }}
+                title="일정 추가"
+              >
+                <Plus size={14} />
+              </button>
             </div>
           )
         })}

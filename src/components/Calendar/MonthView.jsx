@@ -1,9 +1,9 @@
 import { useMemo, useRef } from 'react'
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, isToday, isSameDay } from 'date-fns'
 import { sortSchedulesByUserName } from '../../utils/sortUsers'
+import { HolidayBadge } from '../ui/index.jsx'
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
-const MAX_VISIBLE = 6
 const LONG_PRESS_MS = 800
 
 export default function MonthView({
@@ -14,6 +14,8 @@ export default function MonthView({
 }) {
   const longPressTimer = useRef(null)
   const longPressTriggered = useRef(false)
+  const isMobileView = typeof window !== 'undefined' && window.innerWidth <= 768
+  const MAX_VISIBLE = isMobileView ? 3 : 6
 
   const weeks = useMemo(() => {
     const monthStart = startOfMonth(currentDate)
@@ -31,20 +33,18 @@ export default function MonthView({
     return sortSchedulesByUserName(events.filter(e => e.date === dateStr), users, sortBy)
   }
 
-  const startLongPress = (day) => {
+  const startLP = (day) => {
     longPressTriggered.current = false
     longPressTimer.current = setTimeout(() => {
       longPressTriggered.current = true
       onLongPress(day)
     }, LONG_PRESS_MS)
   }
-
-  const cancelLongPress = () => {
+  const cancelLP = () => {
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
   }
-
   const handleClick = (e, day) => {
-    if (longPressTriggered.current) return // long-press 후 클릭 방지
+    if (longPressTriggered.current) return
     onDayClick(day, { shiftKey: e.shiftKey, ctrlKey: e.ctrlKey || e.metaKey })
   }
 
@@ -85,24 +85,25 @@ export default function MonthView({
                   hasHighlight && 'highlight-cell',
                 ].filter(Boolean).join(' ')}
                 onClick={(e) => handleClick(e, day)}
-                onMouseDown={() => startLongPress(day)}
-                onMouseUp={cancelLongPress}
-                onMouseLeave={cancelLongPress}
-                onTouchStart={() => startLongPress(day)}
-                onTouchEnd={(e) => { cancelLongPress(); if (!longPressTriggered.current) handleClick(e, day) }}
-                onTouchCancel={cancelLongPress}
+                onMouseDown={() => startLP(day)}
+                onMouseUp={cancelLP}
+                onMouseLeave={cancelLP}
+                onTouchStart={(e) => { e.stopPropagation(); startLP(day) }}
+                onTouchEnd={(e) => {
+                  cancelLP()
+                  if (!longPressTriggered.current) handleClick(e, day)
+                }}
+                onTouchCancel={cancelLP}
               >
                 <div className="day-number-row">
                   <span className="day-number">{format(day, 'd')}</span>
                   {isMultiSelected && <span className="multi-check">✓</span>}
-                  {/* 1순위: 공휴일명 */}
+                  {/* 1순위: 공휴일 */}
                   {holiday && isCurrentMonth && (
-                    <span className="holiday-label" title={holiday}>
-                      {holiday.length > 5 ? holiday.slice(0, 4) + '…' : holiday}
-                    </span>
+                    <HolidayBadge name={holiday.length > 5 ? holiday.slice(0, 4) + '…' : holiday} />
                   )}
                 </div>
-                {/* 2순위: 근무자 이름 */}
+                {/* 2순위: 근무자 */}
                 <div className="day-events">
                   {visibleEvents.map(event => {
                     const user = users.find(u => u.id === event.user_id)
@@ -115,16 +116,14 @@ export default function MonthView({
                         className={`event-chip ${isSwapSel ? 'swap-selected' : ''} ${dimmed ? 'dimmed' : ''}`}
                         style={{ backgroundColor: color }}
                         onClick={(e) => { e.stopPropagation(); onEventClick(event) }}
-                        title={`${event.assignee} - ${event.title}`}
+                        title={`${event.assignee}`}
                       >
                         <span className="event-chip-text">{event.assignee}</span>
                       </div>
                     )
                   })}
                   {hiddenCount > 0 && (
-                    <div className="event-more" onClick={(e) => { e.stopPropagation(); onDayClick(day, {}) }}>
-                      +{hiddenCount}명
-                    </div>
+                    <div className="event-more">+{hiddenCount}명</div>
                   )}
                 </div>
               </div>

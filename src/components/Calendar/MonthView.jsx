@@ -1,14 +1,10 @@
 import { useMemo } from 'react'
-import {
-  startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  eachDayOfInterval, format, isSameMonth, isToday, isSameDay
-} from 'date-fns'
-import { ko } from 'date-fns/locale'
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, isToday, isSameDay } from 'date-fns'
 import { getHolidayName } from '../../lib/holidays'
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 
-export default function MonthView({ currentDate, events, onDayClick, onEventClick, selectedDate }) {
+export default function MonthView({ currentDate, events, users, onDayClick, onEventClick, selectedDate, highlightUserId, swapFirstEvent }) {
   const year = currentDate.getFullYear()
 
   const weeks = useMemo(() => {
@@ -17,11 +13,8 @@ export default function MonthView({ currentDate, events, onDayClick, onEventClic
     const calStart = startOfWeek(monthStart, { weekStartsOn: 0 })
     const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 })
     const days = eachDayOfInterval({ start: calStart, end: calEnd })
-
     const result = []
-    for (let i = 0; i < days.length; i += 7) {
-      result.push(days.slice(i, i + 7))
-    }
+    for (let i = 0; i < days.length; i += 7) result.push(days.slice(i, i + 7))
     return result
   }, [currentDate])
 
@@ -32,16 +25,11 @@ export default function MonthView({ currentDate, events, onDayClick, onEventClic
 
   return (
     <div className="month-view">
-      {/* 요일 헤더 */}
       <div className="day-headers">
         {DAY_LABELS.map((label, i) => (
-          <div key={i} className={`day-header ${i === 0 ? 'sunday' : i === 6 ? 'saturday' : ''}`}>
-            {label}
-          </div>
+          <div key={i} className={`day-header ${i === 0 ? 'sunday' : i === 6 ? 'saturday' : ''}`}>{label}</div>
         ))}
       </div>
-
-      {/* 날짜 그리드 */}
       <div className="month-grid">
         {weeks.map((week, wi) =>
           week.map((day, di) => {
@@ -53,6 +41,7 @@ export default function MonthView({ currentDate, events, onDayClick, onEventClic
             const dayEvents = getEventsForDay(day)
             const isSun = di === 0
             const isSat = di === 6
+            const hasHighlight = highlightUserId && dayEvents.some(e => e.user_id === highlightUserId)
 
             return (
               <div
@@ -64,36 +53,36 @@ export default function MonthView({ currentDate, events, onDayClick, onEventClic
                   isSelected && 'selected',
                   (holiday || isSun) && 'holiday-day',
                   isSat && 'saturday-day',
+                  hasHighlight && 'highlight-cell',
                 ].filter(Boolean).join(' ')}
                 onClick={() => onDayClick(day)}
               >
                 <div className="day-number-row">
                   <span className="day-number">{format(day, 'd')}</span>
-                  {holiday && (
-                    <span className="holiday-label" title={holiday}>
-                      {holiday.length > 5 ? holiday.slice(0, 4) + '…' : holiday}
-                    </span>
-                  )}
+                  {holiday && <span className="holiday-label" title={holiday}>{holiday.length > 4 ? holiday.slice(0, 3) + '…' : holiday}</span>}
                 </div>
-
                 <div className="day-events">
-                  {dayEvents.slice(0, 3).map(event => (
-                    <div
-                      key={event.id}
-                      className="event-chip"
-                      style={{ backgroundColor: event.color || '#4F8EF7', color: '#fff' }}
-                      onClick={(e) => { e.stopPropagation(); onEventClick(event) }}
-                      title={`${event.title} - ${event.assignee}`}
-                    >
-                      <span className="event-chip-text">
-                        {event.start_time && <span className="event-time">{event.start_time.slice(0, 5)} </span>}
-                        {event.title}
-                      </span>
-                    </div>
-                  ))}
-                  {dayEvents.length > 3 && (
-                    <div className="event-more">+{dayEvents.length - 3}개 더</div>
-                  )}
+                  {dayEvents.slice(0, 4).map(event => {
+                    const user = users.find(u => u.id === event.user_id)
+                    const color = user?.color || event.color || '#4F8EF7'
+                    const isSwapSelected = swapFirstEvent?.id === event.id
+                    const dimmed = highlightUserId && event.user_id !== highlightUserId
+                    return (
+                      <div
+                        key={event.id}
+                        className={`event-chip ${isSwapSelected ? 'swap-selected' : ''} ${dimmed ? 'dimmed' : ''}`}
+                        style={{ backgroundColor: color }}
+                        onClick={(e) => { e.stopPropagation(); onEventClick(event) }}
+                        title={`${event.assignee} - ${event.title}`}
+                      >
+                        <span className="event-chip-text">
+                          {event.start_time && <span className="event-time">{event.start_time.slice(0, 5)} </span>}
+                          {event.assignee}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  {dayEvents.length > 4 && <div className="event-more">+{dayEvents.length - 4}명</div>}
                 </div>
               </div>
             )

@@ -73,7 +73,6 @@ export function useEvents() {
     }
   }
 
-  // 두 이벤트의 날짜를 교체
   const swapEvents = async (eventA, eventB) => {
     try {
       const { error: e1 } = await supabase.from('events').update({ date: eventB.date }).eq('id', eventA.id)
@@ -86,7 +85,7 @@ export function useEvents() {
     }
   }
 
-  // 빠른 배정: user 정보로 이벤트 즉시 생성
+  // 단일 사용자 빠른 배정
   const quickAssign = async (date, user) => {
     const eventData = {
       title: `${user.name} 근무`,
@@ -99,11 +98,37 @@ export function useEvents() {
     return await addEvent(eventData)
   }
 
+  // 그룹 전체 배정 (각 멤버별 개별 이벤트 생성)
+  const quickAssignGroup = async (date, group, members) => {
+    if (!members || members.length === 0) return { success: false, error: '그룹에 멤버가 없습니다.' }
+    try {
+      const inserts = members.map(user => ({
+        title: `${user.name} 근무`,
+        assignee: user.name,
+        date,
+        color: user.color,
+        user_id: user.id,
+        category: '근무',
+      }))
+      const { error } = await supabase.from('events').insert(inserts)
+      if (error) throw error
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  }
+
   const getEventsForDate = useCallback((dateStr) => events.filter(e => e.date === dateStr), [events])
   const getEventsForMonth = useCallback((year, month) => {
     const prefix = `${year}-${String(month).padStart(2, '0')}`
     return events.filter(e => e.date.startsWith(prefix))
   }, [events])
 
-  return { events, loading, error, addEvent, updateEvent, deleteEvent, swapEvents, quickAssign, getEventsForDate, getEventsForMonth, refetch: fetchEvents }
+  return {
+    events, loading, error,
+    addEvent, updateEvent, deleteEvent,
+    swapEvents, quickAssign, quickAssignGroup,
+    getEventsForDate, getEventsForMonth,
+    refetch: fetchEvents,
+  }
 }

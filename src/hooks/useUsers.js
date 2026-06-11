@@ -10,6 +10,7 @@ export function useUsers() {
       const { data, error } = await supabase
         .from('users')
         .select('*')
+        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true })
       if (error) throw error
       setUsers(data || [])
@@ -24,10 +25,8 @@ export function useUsers() {
     fetchUsers()
     const channel = supabase
       .channel('users-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
-        if (payload.eventType === 'INSERT') setUsers(prev => [...prev, payload.new])
-        else if (payload.eventType === 'UPDATE') setUsers(prev => prev.map(u => u.id === payload.new.id ? payload.new : u))
-        else if (payload.eventType === 'DELETE') setUsers(prev => prev.filter(u => u.id !== payload.old.id))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+        fetchUsers()
       })
       .subscribe()
     return () => supabase.removeChannel(channel)
@@ -35,7 +34,12 @@ export function useUsers() {
 
   const addUser = async (userData) => {
     try {
-      const { data, error } = await supabase.from('users').insert([userData]).select().single()
+      // sort_order: 현재 최대값 + 1
+      const maxOrder = users.reduce((max, u) => Math.max(max, u.sort_order || 0), 0)
+      const { data, error } = await supabase
+        .from('users')
+        .insert([{ ...userData, sort_order: maxOrder + 1 }])
+        .select().single()
       if (error) throw error
       return { success: true, data }
     } catch (err) {
@@ -64,6 +68,7 @@ export function useUsers() {
   }
 
   const getUserById = useCallback((id) => users.find(u => u.id === id), [users])
+  const getUsersByGroup = useCallback((groupId) => users.filter(u => u.group_id === groupId), [users])
 
-  return { users, loading, addUser, updateUser, deleteUser, getUserById, refetch: fetchUsers }
+  return { users, loading, addUser, updateUser, deleteUser, getUserById, getUsersByGroup, refetch: fetchUsers }
 }

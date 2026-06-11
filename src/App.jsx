@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import Header from './components/Header'
@@ -9,9 +9,12 @@ import YearView from './components/Calendar/YearView'
 import EventModal from './components/EventModal'
 import QuickAssign from './components/QuickAssign'
 import UserManager from './components/UserManager'
+import GroupManager from './components/GroupManager'
 import StatsPanel from './components/StatsPanel'
 import { useEvents } from './hooks/useEvents'
 import { useUsers } from './hooks/useUsers'
+import { useGroups } from './hooks/useGroups'
+import { sortUsers, SORT_OPTIONS } from './utils/sortUsers'
 
 const isSupabaseConfigured = () => {
   const url = import.meta.env.VITE_SUPABASE_URL
@@ -25,21 +28,27 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState(null)
   const [isUserManagerOpen, setIsUserManagerOpen] = useState(false)
+  const [isGroupManagerOpen, setIsGroupManagerOpen] = useState(false)
   const [isStatsOpen, setIsStatsOpen] = useState(false)
   const [quickMode, setQuickMode] = useState(false)
   const [swapFirstEvent, setSwapFirstEvent] = useState(null)
   const [highlightUserId, setHighlightUserId] = useState(null)
+  const [sortBy, setSortBy] = useState(SORT_OPTIONS.REGISTERED)
 
-  const { events, loading, addEvent, updateEvent, deleteEvent, swapEvents, quickAssign } = useEvents()
+  const { events, loading, addEvent, updateEvent, deleteEvent, swapEvents, quickAssign, quickAssignGroup } = useEvents()
   const { users, addUser, updateUser, deleteUser } = useUsers()
+  const { groups, addGroup, updateGroup, deleteGroup } = useGroups()
+
+  // 전역 정렬된 사용자 목록 — 모든 화면에서 동일하게 사용
+  const sortedUsers = useMemo(() => sortUsers(users, sortBy), [users, sortBy])
 
   if (!isSupabaseConfigured()) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: '20px' }}>
-        <div style={{ background: 'var(--surface)', borderRadius: '16px', padding: '40px', maxWidth: '500px', width: '100%', textAlign: 'center', boxShadow: 'var(--shadow)' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F0F2F5', padding: '20px' }}>
+        <div style={{ background: '#fff', borderRadius: '16px', padding: '40px', maxWidth: '500px', width: '100%', textAlign: 'center' }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔧</div>
           <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '12px' }}>Supabase 설정 필요</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>.env 파일에 VITE_SUPABASE_URL과 VITE_SUPABASE_ANON_KEY를 설정해주세요.</p>
+          <p style={{ color: '#64748B', fontSize: '14px' }}>.env 파일에 VITE_SUPABASE_URL과 VITE_SUPABASE_ANON_KEY를 설정해주세요.</p>
         </div>
       </div>
     )
@@ -52,14 +61,9 @@ export default function App() {
 
   const handleEventClick = (event) => {
     if (swapFirstEvent) {
-      // 교체 두 번째 선택
-      if (swapFirstEvent.id === event.id) {
-        setSwapFirstEvent(null)
-        return
-      }
-      const dateA = format(swapFirstEvent.date ? new Date(swapFirstEvent.date) : new Date(), 'M월 d일', { locale: ko })
-      const dateB = format(event.date ? new Date(event.date) : new Date(), 'M월 d일', { locale: ko })
-      if (window.confirm(`${dateA} ${swapFirstEvent.assignee}와\n${dateB} ${event.assignee}의 근무를 교체할까요?`)) {
+      if (swapFirstEvent.id === event.id) { setSwapFirstEvent(null); return }
+      const fmtDate = (d) => { try { return format(new Date(d), 'M월 d일', { locale: ko }) } catch { return d } }
+      if (window.confirm(`${fmtDate(swapFirstEvent.date)} ${swapFirstEvent.assignee}와\n${fmtDate(event.date)} ${event.assignee}의 근무를 교체할까요?`)) {
         swapEvents(swapFirstEvent, event)
       }
       setSwapFirstEvent(null)
@@ -71,7 +75,7 @@ export default function App() {
 
   const handleAddEvent = useCallback((date) => {
     setEditingEvent(null)
-    if (date) setSelectedDate(date)
+    if (date) setSelectedDate(date instanceof Date ? date : new Date(date))
     setIsModalOpen(true)
   }, [])
 
@@ -80,16 +84,8 @@ export default function App() {
     return await addEvent(formData)
   }
 
-  const handleDeleteEvent = async (id) => {
-    return await deleteEvent(id)
-  }
-
-  const handleSwapStart = (event) => {
-    setSwapFirstEvent(event)
-  }
-
-  const handleQuickAssign = async (dateStr, user) => {
-    await quickAssign(dateStr, user)
+  const handleQuickAssignGroup = async (dateStr, group, members) => {
+    await quickAssignGroup(dateStr, group, members)
   }
 
   return (
@@ -101,12 +97,14 @@ export default function App() {
         onViewModeChange={setViewMode}
         onAddEvent={() => handleAddEvent(selectedDate || currentDate)}
         onUserManager={() => setIsUserManagerOpen(true)}
+        onGroupManager={() => setIsGroupManagerOpen(true)}
         onStatsPanel={() => setIsStatsOpen(true)}
         quickMode={quickMode}
         onQuickModeToggle={() => setQuickMode(p => !p)}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
       />
 
-      {/* 교체 모드 배너 */}
       {swapFirstEvent && (
         <div className="swap-top-banner">
           🔄 <strong>{swapFirstEvent.assignee}</strong> 선택됨 — 교체할 다른 일정을 클릭하세요
@@ -116,41 +114,40 @@ export default function App() {
 
       <main className="main">
         <div className="calendar-area">
-          {loading && (
-            <div className="loading-overlay">
-              <div className="loading-spinner" />
-            </div>
-          )}
+          {loading && <div className="loading-overlay"><div className="loading-spinner" /></div>}
 
           {viewMode === 'year' && (
-            <YearView currentDate={currentDate} events={events} users={users} onDayClick={handleDayClick} highlightUserId={highlightUserId} />
+            <YearView currentDate={currentDate} events={events} users={users}
+              sortedUsers={sortedUsers} onDayClick={handleDayClick} highlightUserId={highlightUserId} />
           )}
           {viewMode === 'month' && (
-            <MonthView
-              currentDate={currentDate} events={events} users={users}
-              onDayClick={handleDayClick} onEventClick={handleEventClick}
-              selectedDate={selectedDate} highlightUserId={highlightUserId}
-              swapFirstEvent={swapFirstEvent}
-            />
+            <MonthView currentDate={currentDate} events={events} users={users}
+              sortedUsers={sortedUsers} onDayClick={handleDayClick} onEventClick={handleEventClick}
+              selectedDate={selectedDate} highlightUserId={highlightUserId} swapFirstEvent={swapFirstEvent} />
           )}
           {viewMode === 'week' && (
-            <WeekView currentDate={currentDate} events={events} onDayClick={handleDayClick} onEventClick={handleEventClick} selectedDate={selectedDate} />
+            <WeekView currentDate={currentDate} events={events} onDayClick={handleDayClick}
+              onEventClick={handleEventClick} selectedDate={selectedDate} />
           )}
           {viewMode === 'day' && (
-            <DayView currentDate={currentDate} events={events} onEventClick={handleEventClick} onAddEvent={() => handleAddEvent(currentDate)} />
+            <DayView currentDate={currentDate} events={events}
+              onEventClick={handleEventClick} onAddEvent={() => handleAddEvent(currentDate)} />
           )}
         </div>
 
         <QuickAssign
           selectedDate={selectedDate}
           users={users}
+          sortedUsers={sortedUsers}
+          groups={groups}
           events={events}
-          onQuickAssign={handleQuickAssign}
+          onQuickAssign={quickAssign}
+          onQuickAssignGroup={handleQuickAssignGroup}
           onEventClick={handleEventClick}
           onAddEvent={() => handleAddEvent(selectedDate || currentDate)}
           swapFirstEvent={swapFirstEvent}
-          onSwapStart={handleSwapStart}
           quickMode={quickMode}
+          sortBy={sortBy}
         />
       </main>
 
@@ -158,27 +155,40 @@ export default function App() {
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setEditingEvent(null) }}
         onSave={handleSaveEvent}
-        onDelete={handleDeleteEvent}
-        onSwapStart={handleSwapStart}
+        onDelete={deleteEvent}
+        onSwapStart={setSwapFirstEvent}
         event={editingEvent}
         defaultDate={selectedDate || currentDate}
-        users={users}
+        users={sortedUsers}
       />
 
       <UserManager
         isOpen={isUserManagerOpen}
         onClose={() => setIsUserManagerOpen(false)}
-        users={users}
+        users={sortedUsers}
+        groups={groups}
         onAdd={addUser}
         onUpdate={updateUser}
         onDelete={deleteUser}
         events={events}
       />
 
+      <GroupManager
+        isOpen={isGroupManagerOpen}
+        onClose={() => setIsGroupManagerOpen(false)}
+        groups={groups}
+        users={sortedUsers}
+        onAddGroup={addGroup}
+        onUpdateGroup={updateGroup}
+        onDeleteGroup={deleteGroup}
+        onUpdateUser={updateUser}
+      />
+
       <StatsPanel
         isOpen={isStatsOpen}
         onClose={() => setIsStatsOpen(false)}
-        users={users}
+        users={sortedUsers}
+        groups={groups}
         events={events}
         currentDate={currentDate}
         onHighlight={setHighlightUserId}

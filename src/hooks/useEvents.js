@@ -45,7 +45,10 @@ export function useEvents() {
 
   const addEvent = async (eventData) => {
     try {
-      const { data, error } = await supabase.from('events').insert([eventData]).select().single()
+      const { data, error } = await supabase.from('events').insert([{
+        ...eventData,
+        schedule_type: eventData.schedule_type || 'work',
+      }]).select().single()
       if (error) throw error
       return { success: true, data }
     } catch (err) {
@@ -54,37 +57,52 @@ export function useEvents() {
   }
 
   /**
-   * 여러 사용자를 동일 날짜/시간/메모로 한 번에 등록
-   * @param {Object} commonData - { date, start_time, end_time, memo, category }
-   * @param {Array} selectedUsers - [{ id, name, color }, ...]
+   * 다중 날짜 × 다중 사용자 일정 생성
+   * @param {string[]} targetDates    - ['YYYY-MM-DD', ...]
+   * @param {Object[]} selectedUsers  - [{ id, name, color }, ...]
+   * @param {Object}   commonData     - { start_time, end_time, memo, schedule_type }
+   * @returns {{ success, count, error }}
    */
-  const addMultipleEvents = async (commonData, selectedUsers) => {
-    if (!selectedUsers || selectedUsers.length === 0) {
-      return { success: false, error: '사용자를 선택하세요.' }
+  const addMultipleEvents = useCallback(async (targetDates, selectedUsers, commonData) => {
+    if (!targetDates || targetDates.length === 0) return { success: false, error: '날짜를 선택하세요.' }
+    if (!selectedUsers || selectedUsers.length === 0) return { success: false, error: '사용자를 선택하세요.' }
+
+    const scheduleType = commonData.schedule_type || 'work'
+    const isLeave      = scheduleType === 'annual_leave'
+
+    const inserts = []
+    for (const date of targetDates) {
+      for (const user of selectedUsers) {
+        inserts.push({
+          title:         isLeave ? `${user.name} 연차` : `${user.name} 근무`,
+          assignee:      user.name,
+          date,
+          start_time:    commonData.start_time  || null,
+          end_time:      commonData.end_time    || null,
+          memo:          commonData.memo        || null,
+          color:         isLeave ? '#1A1A2E' : (user.color || '#4F8EF7'),
+          user_id:       user.id,
+          category:      isLeave ? '연차' : '근무',
+          schedule_type: scheduleType,
+        })
+      }
     }
+
     try {
-      const inserts = selectedUsers.map(user => ({
-        title:      `${user.name} 근무`,
-        assignee:   user.name,
-        date:       commonData.date,
-        start_time: commonData.start_time || null,
-        end_time:   commonData.end_time   || null,
-        memo:       commonData.memo       || null,
-        color:      user.color            || '#4F8EF7',
-        user_id:    user.id,
-        category:   commonData.category   || '근무',
-      }))
       const { error } = await supabase.from('events').insert(inserts)
       if (error) throw error
       return { success: true, count: inserts.length }
     } catch (err) {
       return { success: false, error: err.message }
     }
-  }
+  }, [])
 
   const updateEvent = async (id, eventData) => {
     try {
-      const { data, error } = await supabase.from('events').update(eventData).eq('id', id).select().single()
+      const saveData = { ...eventData, schedule_type: eventData.schedule_type || 'work' }
+      // 연차면 color를 검정으로 강제
+      if (saveData.schedule_type === 'annual_leave') saveData.color = '#1A1A2E'
+      const { data, error } = await supabase.from('events').update(saveData).eq('id', id).select().single()
       if (error) throw error
       return { success: true, data }
     } catch (err) {
@@ -114,10 +132,12 @@ export function useEvents() {
     }
   }
 
+  // 빠른 배정 — 항상 work
   const quickAssign = async (date, user) => {
     return await addEvent({
       title: `${user.name} 근무`, assignee: user.name,
-      date, color: user.color, user_id: user.id, category: '근무',
+      date, color: user.color, user_id: user.id,
+      category: '근무', schedule_type: 'work',
     })
   }
 
@@ -126,7 +146,8 @@ export function useEvents() {
     try {
       const inserts = members.map(user => ({
         title: `${user.name} 근무`, assignee: user.name,
-        date, color: user.color, user_id: user.id, category: '근무',
+        date, color: user.color, user_id: user.id,
+        category: '근무', schedule_type: 'work',
       }))
       const { error } = await supabase.from('events').insert(inserts)
       if (error) throw error

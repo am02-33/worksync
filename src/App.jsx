@@ -47,8 +47,8 @@ export default function App() {
   const [isGroupManagerOpen, setIsGroupManagerOpen]   = useState(false)
   const [isHolidayManagerOpen, setIsHolidayManagerOpen] = useState(false)
 
-  const [swapFirstEvent, setSwapFirstEvent]     = useState(null)
-  const [mobileSwapMode, setMobileSwapMode]     = useState(false)
+  const [swapFirstEvent, setSwapFirstEvent] = useState(null)
+  const [mobileSwapMode, setMobileSwapMode] = useState(false)
   const [mobileSwapFirstEvent, setMobileSwapFirstEvent] = useState(null)
 
   const [quickMode, setQuickMode] = useState(false)
@@ -61,14 +61,12 @@ export default function App() {
 
   const sortedUsers = useMemo(() => sortUsers(users, sortBy), [users, sortBy])
 
-  // ESC — input 입력 중에는 blur만, 그 외에는 모달 닫기
+  // ESC
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key !== 'Escape') return
       const tag = document.activeElement?.tagName?.toLowerCase()
-      if (['input', 'textarea', 'select'].includes(tag)) {
-        document.activeElement.blur(); return
-      }
+      if (['input', 'textarea', 'select'].includes(tag)) { document.activeElement.blur(); return }
       if (isHolidayManagerOpen)  { setIsHolidayManagerOpen(false);  return }
       if (isGroupManagerOpen)    { setIsGroupManagerOpen(false);     return }
       if (isUserManagerOpen)     { setIsUserManagerOpen(false);      return }
@@ -82,22 +80,17 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isHolidayManagerOpen, isGroupManagerOpen, isUserManagerOpen, isModalOpen, mobileDateModalOpen, mobileSwapMode, multiMode, swapFirstEvent])
 
-  const resetMobileSwap = useCallback(() => {
-    setMobileSwapMode(false); setMobileSwapFirstEvent(null)
-  }, [])
-
-  const handleMobileSwapStart = useCallback((firstEvent) => {
-    setMobileSwapFirstEvent(firstEvent); setMobileSwapMode(true)
-  }, [])
+  const resetMobileSwap = useCallback(() => { setMobileSwapMode(false); setMobileSwapFirstEvent(null) }, [])
+  const handleMobileSwapStart = useCallback((ev) => { setMobileSwapFirstEvent(ev); setMobileSwapMode(true) }, [])
 
   // 날짜 클릭
   const handleDayClick = useCallback((date, opts = {}) => {
     const { shiftKey = false, ctrlKey = false } = opts
-    const dateStr = format(date, 'yyyy-MM-dd')
+    const ds = format(date, 'yyyy-MM-dd')
 
     if (isMobile && mobileSwapMode) {
-      const firstDs = mobileSwapFirstEvent ? format(new Date(mobileSwapFirstEvent.date), 'yyyy-MM-dd') : null
-      if (firstDs && dateStr === firstDs) { alert('같은 날짜는 선택할 수 없습니다.'); return }
+      const fds = mobileSwapFirstEvent ? format(new Date(mobileSwapFirstEvent.date), 'yyyy-MM-dd') : null
+      if (fds && ds === fds) { alert('같은 날짜는 선택할 수 없습니다.'); return }
       setSelectedDate(date); setMobileDateModalOpen(true); return
     }
 
@@ -107,27 +100,21 @@ export default function App() {
     }
 
     if (multiMode || ctrlKey) {
-      setSelectedDates(prev => {
-        const next = prev.includes(dateStr) ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
-        if (next.length === 0) { setMultiMode(false); return [] }
-        return next
-      })
-      setSelectedDate(date); setLastClickedDate(dateStr); return
+      setSelectedDates(prev => { const next = prev.includes(ds) ? prev.filter(d => d !== ds) : [...prev, ds]; if (next.length === 0) { setMultiMode(false); return [] }; return next })
+      setSelectedDate(date); setLastClickedDate(ds); return
     }
 
     if (shiftKey && lastClickedDate) {
       try {
-        const start = lastClickedDate < dateStr ? parseISO(lastClickedDate) : date
-        const end   = lastClickedDate < dateStr ? date : parseISO(lastClickedDate)
+        const start = lastClickedDate < ds ? parseISO(lastClickedDate) : date
+        const end   = lastClickedDate < ds ? date : parseISO(lastClickedDate)
         const range = eachDayOfInterval({ start, end }).map(d => format(d, 'yyyy-MM-dd'))
-        setSelectedDates(prev => Array.from(new Set([...prev, ...range])))
-        setSelectedDate(date)
+        setSelectedDates(prev => Array.from(new Set([...prev, ...range]))); setSelectedDate(date)
       } catch {}
       return
     }
 
-    setSelectedDates([]); setMultiMode(false)
-    setSelectedDate(date); setLastClickedDate(dateStr)
+    setSelectedDates([]); setMultiMode(false); setSelectedDate(date); setLastClickedDate(ds)
     if (viewMode === 'year') setViewMode('month')
   }, [isMobile, mobileSwapMode, mobileSwapFirstEvent, multiMode, lastClickedDate, viewMode])
 
@@ -140,16 +127,11 @@ export default function App() {
   const clearMultiSelect = useCallback(() => { setMultiMode(false); setSelectedDates([]) }, [])
 
   const handleEventClick = useCallback((event) => {
-    if (event._changeToUser) {
-      const u = event._changeToUser
-      updateEvent(event.id, { assignee: u.name, color: u.color, user_id: u.id }); return
-    }
+    if (event._changeToUser) { const u=event._changeToUser; updateEvent(event.id,{assignee:u.name,color:u.color,user_id:u.id}); return }
     if (swapFirstEvent) {
-      if (swapFirstEvent.id === event.id) { setSwapFirstEvent(null); return }
-      const fmtD = (d) => { try { return format(new Date(d), 'M월 d일', { locale: ko }) } catch { return d } }
-      if (window.confirm(`${fmtD(swapFirstEvent.date)} ${swapFirstEvent.assignee}와\n${fmtD(event.date)} ${event.assignee}의 근무를 교체할까요?`)) {
-        swapEvents(swapFirstEvent, event)
-      }
+      if (swapFirstEvent.id===event.id) { setSwapFirstEvent(null); return }
+      const fmtD=(d)=>{try{return format(new Date(d),'M월 d일',{locale:ko})}catch{return d}}
+      if (window.confirm(`${fmtD(swapFirstEvent.date)} ${swapFirstEvent.assignee}와\n${fmtD(event.date)} ${event.assignee}의 근무를 교체할까요?`)) swapEvents(swapFirstEvent, event)
       setSwapFirstEvent(null); return
     }
     setEditingEvent(event); setIsModalOpen(true); setMobileDateModalOpen(false)
@@ -161,25 +143,27 @@ export default function App() {
     setIsModalOpen(true); setMobileDateModalOpen(false)
   }, [])
 
-  // 단일 저장 (수정)
   const handleSaveEvent = async (formData) => {
     if (editingEvent) return await updateEvent(editingEvent.id, formData)
     return await addEvent(formData)
   }
 
-  // 다중 저장 (추가 — EventModal / MobileDateModal 공용)
-  const handleSaveMultiple = async (commonData, selectedUsers) => {
-    return await addMultipleEvents(commonData, selectedUsers)
-  }
+  /**
+   * 다중 날짜 × 다중 사용자 저장
+   * targetDates: selectedDates가 있으면 그것, 없으면 [selectedDate]
+   */
+  const handleSaveMultiple = useCallback(async (targetDates, selectedUsers, commonData) => {
+    // targetDates가 비어있으면 현재 선택 날짜 사용
+    const dates = targetDates.length > 0 ? targetDates : [format(selectedDate || new Date(), 'yyyy-MM-dd')]
+    return await addMultipleEvents(dates, selectedUsers, commonData)
+  }, [addMultipleEvents, selectedDate])
 
   const handleDeleteSelected = useCallback(async () => {
     const targets = selectedDates.length > 0 ? selectedDates : selectedDate ? [format(selectedDate, 'yyyy-MM-dd')] : []
     if (targets.length === 0) { alert('날짜를 먼저 선택하세요.'); return }
     const evs = events.filter(e => targets.includes(e.date))
     if (evs.length === 0) { alert('선택된 날짜에 일정이 없습니다.'); return }
-    const msg = targets.length === 1
-      ? `${targets[0]}의 모든 일정(${evs.length}개)을 삭제할까요?`
-      : `선택된 ${targets.length}일의 일정(${evs.length}개)을 삭제합니다. 계속하시겠습니까?`
+    const msg = targets.length===1?`${targets[0]}의 모든 일정(${evs.length}개)을 삭제할까요?`:`선택된 ${targets.length}일의 일정(${evs.length}개)을 삭제합니다. 계속하시겠습니까?`
     if (!window.confirm(msg)) return
     for (const ev of evs) await deleteEvent(ev.id)
     if (targets.length > 1) alert(`${targets.length}개 날짜의 일정이 삭제되었습니다.`)
@@ -198,17 +182,21 @@ export default function App() {
 
   if (!isSupabaseConfigured()) {
     return (
-      <div style={{ minHeight:'100dvh', display:'flex', alignItems:'center', justifyContent:'center', background:'#F0F2F5', padding:'20px' }}>
-        <div style={{ background:'#fff', borderRadius:'16px', padding:'40px', maxWidth:'480px', width:'100%', textAlign:'center' }}>
-          <div style={{ fontSize:'48px', marginBottom:'16px' }}>🔧</div>
-          <h1 style={{ fontSize:'22px', fontWeight:700 }}>Supabase 설정 필요</h1>
-          <p style={{ color:'#64748B', fontSize:'14px', marginTop:'8px' }}>.env 파일에 환경변수를 설정해주세요.</p>
+      <div style={{ minHeight:'100dvh',display:'flex',alignItems:'center',justifyContent:'center',background:'#F0F2F5',padding:'20px' }}>
+        <div style={{ background:'#fff',borderRadius:'16px',padding:'40px',maxWidth:'480px',width:'100%',textAlign:'center' }}>
+          <div style={{ fontSize:'48px',marginBottom:'16px' }}>🔧</div>
+          <h1 style={{ fontSize:'22px',fontWeight:700 }}>Supabase 설정 필요</h1>
+          <p style={{ color:'#64748B',fontSize:'14px',marginTop:'8px' }}>.env 파일에 환경변수를 설정해주세요.</p>
         </div>
       </div>
     )
   }
 
   const isSwapSecondStep = isMobile && mobileSwapMode && !!mobileSwapFirstEvent
+
+  // EventModal에 전달할 날짜 목록
+  // 다중 선택 중이면 selectedDates, 아니면 빈 배열 (EventModal 내부에서 form.date 사용)
+  const modalSelectedDates = !editingEvent && selectedDates.length > 0 ? selectedDates : []
 
   return (
     <div className="app">
@@ -229,21 +217,19 @@ export default function App() {
       {swapFirstEvent && (
         <div className="swap-top-banner">
           🔄 <strong>{swapFirstEvent.assignee}</strong> — 교체할 일정 클릭
-          <button onPointerUp={() => setSwapFirstEvent(null)} style={{ marginLeft:'12px', background:'none', border:'none', cursor:'pointer', color:'#fff', fontWeight:700, fontSize:'16px', touchAction:'manipulation' }}>✕</button>
+          <button onPointerUp={() => setSwapFirstEvent(null)} style={{ marginLeft:'12px',background:'none',border:'none',cursor:'pointer',color:'#fff',fontWeight:700,fontSize:'16px',touchAction:'manipulation' }}>✕</button>
         </div>
       )}
-
       {mobileSwapMode && mobileSwapFirstEvent && (
         <div className="swap-top-banner" style={{ background:'#7C3AED' }}>
           🔄 <strong>{mobileSwapFirstEvent.assignee}</strong> — 교체할 날짜를 탭하세요
-          <button onPointerUp={resetMobileSwap} style={{ marginLeft:'12px', background:'none', border:'none', cursor:'pointer', color:'#fff', fontWeight:700, fontSize:'16px', touchAction:'manipulation' }}>✕ 취소</button>
+          <button onPointerUp={resetMobileSwap} style={{ marginLeft:'12px',background:'none',border:'none',cursor:'pointer',color:'#fff',fontWeight:700,fontSize:'16px',touchAction:'manipulation' }}>✕ 취소</button>
         </div>
       )}
-
       {(selectedDates.length > 0 || multiMode) && (
         <div className="multi-select-banner">
           <span>📅 <strong>{selectedDates.length}개</strong> 날짜 선택됨</span>
-          <div style={{ display:'flex', gap:'8px', marginLeft:'auto' }}>
+          <div style={{ display:'flex',gap:'8px',marginLeft:'auto' }}>
             <button className="multi-banner-btn" onPointerUp={() => setSelectedDates([])}>선택 해제</button>
             <button className="multi-banner-btn danger" onPointerUp={clearMultiSelect}>종료</button>
           </div>
@@ -253,84 +239,39 @@ export default function App() {
       <main className="main">
         <div className="calendar-area">
           {loading && <div className="loading-overlay"><div className="loading-spinner" /></div>}
-
-          {viewMode === 'year' && (
-            <YearView currentDate={currentDate} events={events} users={users}
-              sortBy={sortBy} onDayClick={handleDayClick} onLongPress={handleLongPress}
-              highlightUserId={null} getHolidayName={getHolidayName} selectedDates={selectedDates} />
-          )}
-          {viewMode === 'month' && (
-            <MonthView currentDate={currentDate} events={events} users={users}
-              sortBy={sortBy} onDayClick={handleDayClick} onLongPress={handleLongPress}
-              onEventClick={handleEventClick} selectedDate={selectedDate}
-              highlightUserId={null} swapFirstEvent={swapFirstEvent}
-              getHolidayName={getHolidayName} selectedDates={selectedDates} />
-          )}
-          {viewMode === 'week' && (
-            <WeekView currentDate={currentDate} events={events} users={sortedUsers}
-              onDayClick={handleDayClick} onEventClick={handleEventClick}
-              selectedDate={selectedDate} getHolidayName={getHolidayName}
-              sortBy={sortBy} onAddEvent={handleAddEvent}
-              onQuickAssign={handleQuickAssign} onQuickAssignGroup={handleQuickAssignGroup}
-              groups={groups} />
-          )}
-          {viewMode === 'day' && (
-            <DayView currentDate={currentDate} events={events} users={sortedUsers}
-              onEventClick={handleEventClick} onAddEvent={handleAddEvent}
-              getHolidayName={getHolidayName} sortBy={sortBy}
-              onQuickAssign={handleQuickAssign} onQuickAssignGroup={handleQuickAssignGroup}
-              groups={groups} onDeleteDay={handleDeleteSelected} />
-          )}
+          {viewMode==='year'&&<YearView currentDate={currentDate} events={events} users={users} sortBy={sortBy} onDayClick={handleDayClick} onLongPress={handleLongPress} highlightUserId={null} getHolidayName={getHolidayName} selectedDates={selectedDates} />}
+          {viewMode==='month'&&<MonthView currentDate={currentDate} events={events} users={users} sortBy={sortBy} onDayClick={handleDayClick} onLongPress={handleLongPress} onEventClick={handleEventClick} selectedDate={selectedDate} highlightUserId={null} swapFirstEvent={swapFirstEvent} getHolidayName={getHolidayName} selectedDates={selectedDates} />}
+          {viewMode==='week'&&<WeekView currentDate={currentDate} events={events} users={sortedUsers} onDayClick={handleDayClick} onEventClick={handleEventClick} selectedDate={selectedDate} getHolidayName={getHolidayName} sortBy={sortBy} onAddEvent={handleAddEvent} onQuickAssign={handleQuickAssign} onQuickAssignGroup={handleQuickAssignGroup} groups={groups} />}
+          {viewMode==='day'&&<DayView currentDate={currentDate} events={events} users={sortedUsers} onEventClick={handleEventClick} onAddEvent={handleAddEvent} getHolidayName={getHolidayName} sortBy={sortBy} onQuickAssign={handleQuickAssign} onQuickAssignGroup={handleQuickAssignGroup} groups={groups} onDeleteDay={handleDeleteSelected} />}
         </div>
-
-        {!isMobile && (
-          <QuickAssign
-            selectedDate={selectedDate} selectedDates={selectedDates} multiMode={multiMode}
-            users={users} sortedUsers={sortedUsers} groups={groups} events={events}
-            onQuickAssign={handleQuickAssign} onQuickAssignGroup={handleQuickAssignGroup}
-            onEventClick={handleEventClick} onAddEvent={() => handleAddEvent(selectedDate || currentDate)}
-            swapFirstEvent={swapFirstEvent} quickMode={quickMode} sortBy={sortBy}
-            onClearMulti={clearMultiSelect} getHolidayName={getHolidayName}
-          />
-        )}
+        {!isMobile&&<QuickAssign selectedDate={selectedDate} selectedDates={selectedDates} multiMode={multiMode} users={users} sortedUsers={sortedUsers} groups={groups} events={events} onQuickAssign={handleQuickAssign} onQuickAssignGroup={handleQuickAssignGroup} onEventClick={handleEventClick} onAddEvent={()=>handleAddEvent(selectedDate||currentDate)} swapFirstEvent={swapFirstEvent} quickMode={quickMode} sortBy={sortBy} onClearMulti={clearMultiSelect} getHolidayName={getHolidayName} />}
       </main>
 
       <MobileDateModal
-        isOpen={mobileDateModalOpen}
-        onClose={() => setMobileDateModalOpen(false)}
+        isOpen={mobileDateModalOpen} onClose={()=>setMobileDateModalOpen(false)}
         selectedDate={selectedDate} events={events} users={sortedUsers} groups={groups}
         getHolidayName={getHolidayName} sortBy={sortBy}
         onEventClick={handleEventClick} onAddEvent={handleAddEvent}
         onQuickAssign={handleQuickAssign} onQuickAssignGroup={handleQuickAssignGroup}
-        onDeleteDay={handleDeleteSelected}
-        onHolidayManager={() => setIsHolidayManagerOpen(true)}
-        onSwapEvents={swapEvents}
-        swapReadyForSecond={isSwapSecondStep}
-        swapFirstEvent={mobileSwapFirstEvent}
-        onSwapStart={handleMobileSwapStart}
-        onSwapReset={resetMobileSwap}
+        onDeleteDay={handleDeleteSelected} onHolidayManager={()=>setIsHolidayManagerOpen(true)}
+        onSwapEvents={swapEvents} swapReadyForSecond={isSwapSecondStep}
+        swapFirstEvent={mobileSwapFirstEvent} onSwapStart={handleMobileSwapStart} onSwapReset={resetMobileSwap}
         onSaveMultiple={handleSaveMultiple}
+        selectedDates={selectedDates}
       />
 
       <EventModal
-        isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setEditingEvent(null) }}
-        onSave={handleSaveEvent}
-        onSaveMultiple={handleSaveMultiple}
-        onDelete={deleteEvent}
-        onSwapStart={setSwapFirstEvent}
-        event={editingEvent} defaultDate={selectedDate || currentDate}
+        isOpen={isModalOpen} onClose={()=>{setIsModalOpen(false);setEditingEvent(null)}}
+        onSave={handleSaveEvent} onSaveMultiple={handleSaveMultiple}
+        onDelete={deleteEvent} onSwapStart={setSwapFirstEvent}
+        event={editingEvent} defaultDate={selectedDate||currentDate}
         users={sortedUsers} groups={groups}
+        selectedDates={modalSelectedDates}
       />
 
-      <UserManager isOpen={isUserManagerOpen} onClose={() => setIsUserManagerOpen(false)}
-        users={sortedUsers} groups={groups} onAdd={addUser} onUpdate={updateUser} onDelete={deleteUser} events={events} />
-      <GroupManager isOpen={isGroupManagerOpen} onClose={() => setIsGroupManagerOpen(false)}
-        groups={groups} users={sortedUsers} onAddGroup={addGroup} onUpdateGroup={updateGroup}
-        onDeleteGroup={deleteGroup} onUpdateUser={updateUser} />
-      <HolidayManager isOpen={isHolidayManagerOpen} onClose={() => setIsHolidayManagerOpen(false)}
-        dbHolidays={dbHolidays} onAdd={addCustomHoliday} onDelete={deleteHoliday}
-        onUpdate={updateHoliday} onRefresh={refreshYearHolidays} currentYear={currentDate.getFullYear()} />
+      <UserManager isOpen={isUserManagerOpen} onClose={()=>setIsUserManagerOpen(false)} users={sortedUsers} groups={groups} onAdd={addUser} onUpdate={updateUser} onDelete={deleteUser} events={events} />
+      <GroupManager isOpen={isGroupManagerOpen} onClose={()=>setIsGroupManagerOpen(false)} groups={groups} users={sortedUsers} onAddGroup={addGroup} onUpdateGroup={updateGroup} onDeleteGroup={deleteGroup} onUpdateUser={updateUser} />
+      <HolidayManager isOpen={isHolidayManagerOpen} onClose={()=>setIsHolidayManagerOpen(false)} dbHolidays={dbHolidays} onAdd={addCustomHoliday} onDelete={deleteHoliday} onUpdate={updateHoliday} onRefresh={refreshYearHolidays} currentYear={currentDate.getFullYear()} />
     </div>
   )
 }

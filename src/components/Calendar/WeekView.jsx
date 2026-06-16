@@ -1,16 +1,21 @@
 import { useMemo } from 'react'
 import { startOfWeek, addDays, format, isToday, isSameDay } from 'date-fns'
-import { ko } from 'date-fns/locale'
 import { Plus } from 'lucide-react'
 import { sortSchedulesByUserName } from '../../utils/sortUsers'
+import { getChipLabel } from '../../utils/chipStyle'
 
-const DAY_KO  = ['일', '월', '화', '수', '목', '금', '토']
+const DAY_KO = ['일', '월', '화', '수', '목', '금', '토']
 
 function formatTime(s, e) {
   if (!s && !e) return null
-  if (s && e)   return `${s.slice(0,5)}~${e.slice(0,5)}`
-  if (s)        return s.slice(0,5)
+  if (s && e) return `${s.slice(0,5)}~${e.slice(0,5)}`
+  if (s) return s.slice(0,5)
   return `~${e.slice(0,5)}`
+}
+
+function resolveColor(event, user) {
+  if (event.schedule_type === 'annual_leave') return '#1A1A2E'
+  return user?.color || event.color || '#4F8EF7'
 }
 
 export default function WeekView({
@@ -33,58 +38,43 @@ export default function WeekView({
     <div className="wv-wrap">
       <div className="wv-grid">
         {weekDays.map((day, di) => {
-          const ds       = format(day, 'yyyy-MM-dd')
-          const holiday  = getHolidayName(ds)
-          const todayDay = isToday(day)
-          const selDay   = selectedDate && isSameDay(day, selectedDate)
-          const isSun    = di === 0
-          const isSat    = di === 6
-          const dayEvs   = getEventsForDay(day)
-          const visible  = dayEvs.slice(0, 6)
-          const hidden   = dayEvs.length - 6
+          const ds      = format(day, 'yyyy-MM-dd')
+          const holiday = getHolidayName(ds)
+          const todayD  = isToday(day)
+          const selD    = selectedDate && isSameDay(day, selectedDate)
+          const isSun   = di === 0
+          const isSat   = di === 6
+          const dayEvs  = getEventsForDay(day)
+          const visible = dayEvs.slice(0, 6)
+          const hidden  = dayEvs.length - 6
 
           return (
-            <div
-              key={ds}
-              className={['wv-card', todayDay && 'wv-today', selDay && 'wv-selected', holiday && 'wv-holiday'].filter(Boolean).join(' ')}
-              onPointerUp={() => onDayClick(day, {})}
-            >
-              {/* 카드 헤더 */}
+            <div key={ds}
+              className={['wv-card', todayD && 'wv-today', selD && 'wv-selected', holiday && 'wv-holiday'].filter(Boolean).join(' ')}
+              onPointerUp={() => onDayClick(day, {})}>
               <div className="wv-card-head">
-                <span className={['wv-dow', isSun && 'wv-sun', isSat && 'wv-sat'].filter(Boolean).join(' ')}>
-                  {DAY_KO[di]}
-                </span>
-                <span className={['wv-num', todayDay && 'wv-num-today', isSun && 'wv-sun', isSat && 'wv-sat'].filter(Boolean).join(' ')}>
-                  {format(day, 'd')}
-                </span>
-                {holiday && (
-                  <span className="wv-holiday-badge">{holiday.length > 5 ? holiday.slice(0,4)+'…' : holiday}</span>
-                )}
+                <span className={['wv-dow', isSun && 'wv-sun', isSat && 'wv-sat'].filter(Boolean).join(' ')}>{DAY_KO[di]}</span>
+                <span className={['wv-num', todayD && 'wv-num-today', isSun && 'wv-sun', isSat && 'wv-sat'].filter(Boolean).join(' ')}>{format(day, 'd')}</span>
+                {holiday && <span className="wv-holiday-badge">{holiday.length > 5 ? holiday.slice(0,4)+'…' : holiday}</span>}
               </div>
-
-              {/* 근무자 칩 */}
               <div className="wv-chips">
-                {dayEvs.length === 0 && (
-                  <span className="wv-empty">근무자 없음</span>
-                )}
+                {dayEvs.length === 0 && <span className="wv-empty">근무자 없음</span>}
                 {visible.map(ev => {
                   const user  = users.find(u => u.id === ev.user_id)
-                  const color = user?.color || ev.color || '#4F8EF7'
+                  const color = resolveColor(ev, user)
                   const t     = formatTime(ev.start_time, ev.end_time)
+                  const label = getChipLabel(ev)
                   return (
-                    <div key={ev.id} className="wv-chip"
-                      style={{ backgroundColor: color }}
+                    <div key={ev.id} className="wv-chip" style={{ backgroundColor: color }}
                       onPointerDown={e => e.stopPropagation()}
                       onPointerUp={e => { e.stopPropagation(); onEventClick(ev) }}>
                       {t && <span className="wv-chip-time">{t} </span>}
-                      {ev.assignee}
+                      {label}
                     </div>
                   )
                 })}
                 {hidden > 0 && <div className="wv-more">+{hidden}명</div>}
               </div>
-
-              {/* + 버튼 */}
               <button className="wv-add"
                 onPointerDown={e => e.stopPropagation()}
                 onPointerUp={e => { e.stopPropagation(); onAddEvent(day) }}>

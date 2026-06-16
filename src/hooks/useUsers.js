@@ -10,6 +10,7 @@ export function useUsers() {
       const { data, error } = await supabase
         .from('users')
         .select('*')
+        .order('is_pinned', { ascending: false })   // 핀 먼저
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true })
       if (error) throw error
@@ -34,11 +35,14 @@ export function useUsers() {
 
   const addUser = async (userData) => {
     try {
-      // sort_order: 현재 최대값 + 1
       const maxOrder = users.reduce((max, u) => Math.max(max, u.sort_order || 0), 0)
       const { data, error } = await supabase
         .from('users')
-        .insert([{ ...userData, sort_order: maxOrder + 1 }])
+        .insert([{
+          ...userData,
+          sort_order: maxOrder + 1,
+          is_pinned: userData.is_pinned ?? false,
+        }])
         .select().single()
       if (error) throw error
       return { success: true, data }
@@ -49,7 +53,14 @@ export function useUsers() {
 
   const updateUser = async (id, userData) => {
     try {
-      const { data, error } = await supabase.from('users').update(userData).eq('id', id).select().single()
+      const { data, error } = await supabase
+        .from('users')
+        .update({
+          ...userData,
+          is_pinned: userData.is_pinned ?? false,
+        })
+        .eq('id', id)
+        .select().single()
       if (error) throw error
       return { success: true, data }
     } catch (err) {
@@ -67,7 +78,7 @@ export function useUsers() {
     }
   }
 
-  const getUserById = useCallback((id) => users.find(u => u.id === id), [users])
+  const getUserById     = useCallback((id) => users.find(u => u.id === id), [users])
   const getUsersByGroup = useCallback((groupId) => users.filter(u => u.group_id === groupId), [users])
 
   return { users, loading, addUser, updateUser, deleteUser, getUserById, getUsersByGroup, refetch: fetchUsers }

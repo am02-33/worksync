@@ -1,0 +1,229 @@
+/* ═══════════════════════════════════════════════════════════
+   모바일 근무표 캘린더 — MobileMonthView 전용 CSS
+   파일명: mobile_calendar.css
+   main.jsx에 import './mobile_calendar.css' 추가
+═══════════════════════════════════════════════════════════ */
+
+/* ── 전체 래퍼 ─────────────────────────────────────────── */
+.mmv-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ── 이번 달 요약바 ─────────────────────────────────────── */
+.mmv-summary-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 8px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.mmv-summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 16px;
+  gap: 2px;
+}
+.mmv-summary-num {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+.mmv-summary-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.mmv-summary-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+}
+
+/* ── 날짜 행 목록 (세로 스크롤) ────────────────────────── */
+.mmv-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* ── 날짜 행 ────────────────────────────────────────────── */
+.mmv-row {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: pan-y;
+  position: relative;
+  transition: background .1s;
+}
+.mmv-row:active { background: #F8F9FF; }
+
+/* 오늘 */
+.mmv-row-today {
+  background: #FFF5F7;
+  border-left: 3px solid var(--accent-light);
+}
+/* 선택됨 */
+.mmv-row-selected {
+  background: #EEF2FF;
+  border-left: 3px solid #4F46E5;
+}
+/* 다중 선택 */
+.mmv-row-multi {
+  background: #EEF2FF;
+}
+/* 공휴일 */
+.mmv-row-holiday {
+  background: #FFF5F5;
+}
+
+/* ── 왼쪽 날짜 컬럼 (고정 너비 64px) ───────────────────── */
+.mmv-date-col {
+  width: 64px;
+  min-width: 64px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  gap: 1px;
+  border-right: 1px solid var(--border);
+  min-height: 52px;
+  position: relative;
+}
+
+/* 날짜 숫자 */
+.mmv-date-num {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+/* 오늘 원형 */
+.mmv-today-circle {
+  background: var(--accent-light);
+  color: #fff !important;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+/* 요일 */
+.mmv-dow {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+/* 일요일/공휴일 빨강 */
+.mmv-sun { color: var(--holiday-red) !important; }
+/* 토요일 파랑 */
+.mmv-sat { color: var(--saturday-blue) !important; }
+
+/* 공휴일 뱃지 */
+.mmv-hol-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--holiday-red);
+  background: var(--holiday-bg);
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-align: center;
+  max-width: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 다중 선택 체크 */
+.mmv-multicheck {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  font-size: 10px;
+  color: #4F46E5;
+  font-weight: 900;
+}
+
+/* ── 오른쪽 이름표 영역 ─────────────────────────────────── */
+.mmv-chips-col {
+  flex: 1;
+  overflow: hidden;           /* 가로 스크롤을 chips-scroll에서 처리 */
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+}
+
+/* 이름표 가로 스크롤 컨테이너 */
+.mmv-chips-scroll {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;        /* 스크롤바 공간 */
+  width: 100%;
+}
+.mmv-chips-scroll::-webkit-scrollbar { display: none; }
+
+/* 근무/연차 구분선 */
+.mmv-divider-v {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+/* 근무자 없음 */
+.mmv-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   모바일에서만 MobileMonthView 표시,
+   기존 MonthView(PC용)는 숨김
+═══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* PC MonthView → 모바일에서 숨김 */
+  .month-view { display: none !important; }
+  /* MobileMonthView → 표시 */
+  .mmv-wrap { display: flex; }
+}
+
+@media (min-width: 769px) {
+  /* PC에서 MobileMonthView 숨김 */
+  .mmv-wrap { display: none !important; }
+  /* PC MonthView → 표시 */
+  .month-view { display: flex; }
+}
+
+/* ── 행 높이: 이름표가 많을수록 높아짐 ─────────────────── */
+/* 이름표 1줄이라도 최소 52px, 자연스럽게 늘어남 */
+.mmv-row { min-height: 52px; }
+
+/* 모바일 터치 피드백 */
+.mmv-row:active .mmv-date-col { background: rgba(79,70,229,.06); }

@@ -1,66 +1,41 @@
 /* ═══════════════════════════════════════════════════════════
-   mobile_calendar.css  —  MobileMonthView 전용
+   mobile_calendar.css
+   - MobileMonthView (상단 컴팩트 달력)
+   - MobileScheduleTimeline (하단 주차별 가로 근무표)
    main.jsx에 반드시 import './mobile_calendar.css' 추가
 ═══════════════════════════════════════════════════════════ */
 
-/* ── PC에서 숨김 / 모바일에서 표시 ──────────────────────── */
-.mmv          { display: none; }   /* 기본 숨김 */
-.month-view   { display: flex; }   /* PC 기본 표시 */
+/* ── PC/모바일 분기 ─────────────────────────────────────── */
+.mmv       { display: none; }
+.month-view{ display: flex; }
 
 @media (max-width: 768px) {
-  .mmv        { display: flex; flex-direction: column; height: 100%; }
+  .mmv        { display: block; }
   .month-view { display: none !important; }
+  /* 모바일에서 calendar-area를 세로 스크롤 컨테이너로 */
+  .calendar-area {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 !important;
+  }
 }
 
-/* ── 전체 래퍼 ─────────────────────────────────────────── */
-.mmv {
-  flex-direction: column;
-  background: #F0F2F5;
-  overflow: hidden;
-}
+/* ═══════════════════════════════════════════════════════════
+   상단 컴팩트 달력 (MobileMonthView)
+═══════════════════════════════════════════════════════════ */
 
-/* ── 요약바 ─────────────────────────────────────────────── */
-.mmv-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  background: #fff;
-  border-bottom: 1px solid #E2E8F0;
-  padding: 8px 0;
-  flex-shrink: 0;
-}
-.mmv-bar-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  flex: 1;
-}
-.mmv-bar-num {
-  font-size: 16px;
-  font-weight: 800;
-  color: #0F172A;
-  line-height: 1;
-}
-.mmv-bar-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: #64748B;
-}
-.mmv-leave-num { color: #EF4444; }
-.mmv-bar-sep {
-  width: 1px;
-  height: 28px;
-  background: #E2E8F0;
-}
-
-/* ── 요일 헤더 ──────────────────────────────────────────── */
+/* 요일 헤더 */
 .mmv-week-header {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   background: #fff;
   border-bottom: 1px solid #E2E8F0;
-  flex-shrink: 0;
+  border-top: 1px solid #E2E8F0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 .mmv-dow-label {
   text-align: center;
@@ -72,81 +47,56 @@
 .mmv-dow-label.sun { color: #EF4444; }
 .mmv-dow-label.sat { color: #3B82F6; }
 
-/* ── 달력 그리드 ────────────────────────────────────────── */
+/* 달력 그리드 */
 .mmv-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));   /* 핵심: 7열 그리드 */
+  grid-template-columns: repeat(7, minmax(0, 1fr));  /* 7열 필수 */
   gap: 1px;
-  background: #E2E8F0;   /* 셀 구분선 역할 */
-  flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  /* 최소 높이: 6주 × 셀 최소 높이 */
-  min-height: 0;
+  background: #E2E8F0;
 }
 
-/* ── 날짜 셀 ────────────────────────────────────────────── */
+/* 날짜 셀 */
 .mmv-cell {
   background: #fff;
-  padding: 4px 3px 5px;
+  padding: 4px 2px 6px;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 2px;
-  min-height: 72px;        /* 모바일 셀 최소 높이 */
+  min-height: 58px;
   cursor: pointer;
   position: relative;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   overflow: hidden;
 }
-.mmv-cell:active { background: #F8F9FF; }
-
-/* 이번 달 아닌 날 */
-.mmv-cell.out {
-  background: #F8FAFC;
-  pointer-events: none;
-}
-.mmv-cell.out .mmv-num { color: #CBD5E1; }
-
-/* 오늘 */
-.mmv-cell.today { background: #FFF5F7; }
-/* 선택 */
+.mmv-cell:active { background: #F0F2FF; }
+.mmv-cell.out    { background: #F8FAFC; pointer-events: none; }
+.mmv-cell.today  { background: #FFF5F7; }
 .mmv-cell.selected { background: #EEF2FF; }
-/* 다중 선택 */
-.mmv-cell.multi {
-  background: #EEF2FF;
-  box-shadow: inset 0 0 0 2px #4F46E5;
-}
-/* 공휴일 날짜 */
-.mmv-cell.hol-day { background: #FFF5F5; }
+.mmv-cell.multi  { background: #EEF2FF; box-shadow: inset 0 0 0 2px #4F46E5; }
+.mmv-cell.hol-day{ background: #FFF5F5; }
 
-/* ── 날짜 숫자 ──────────────────────────────────────────── */
+/* 날짜 숫자 */
 .mmv-num {
   font-size: 13px;
   font-weight: 800;
   color: #0F172A;
-  line-height: 1;
-  text-align: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  margin: 0 auto 1px;
-}
-/* 오늘 원형 */
-.mmv-today-circle {
-  background: #E94560;
-  color: #fff !important;
   border-radius: 50%;
+  line-height: 1;
+  flex-shrink: 0;
 }
-/* 일요일/공휴일 빨강 */
+.mmv-cell.out .mmv-num { color: #CBD5E1; }
+.mmv-today-circle { background: #E94560; color: #fff !important; }
 .mmv-sun { color: #EF4444 !important; }
-/* 토요일 파랑 */
 .mmv-sat { color: #3B82F6 !important; }
 
-/* ── 공휴일명 ───────────────────────────────────────────── */
+/* 공휴일 */
 .mmv-hol-name {
   font-size: 8px;
   font-weight: 700;
@@ -154,49 +104,28 @@
   background: #FEF2F2;
   padding: 1px 3px;
   border-radius: 3px;
-  text-align: center;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-bottom: 1px;
 }
 
-/* ── 이름표 칩 ──────────────────────────────────────────── */
-.mmv-chip {
+/* 색상 점 */
+.mmv-dots-row {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 2px;
-  padding: 2px 5px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-  color: #fff;
-  overflow: hidden;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  min-height: 18px;
-  line-height: 1.2;
+  max-width: 40px;
 }
-.mmv-chip:active { opacity: .8; }
-.mmv-chip-icon { font-size: 9px; flex-shrink: 0; }
-.mmv-chip-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: block;
+.mmv-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
-/* ── +N명 ───────────────────────────────────────────────── */
-.mmv-more {
-  font-size: 9px;
-  color: #64748B;
-  font-weight: 600;
-  padding: 1px 3px;
-  text-align: center;
-}
-
-/* ── 다중 선택 체크 ─────────────────────────────────────── */
+/* 다중 선택 */
 .mmv-check {
   position: absolute;
   top: 2px;
@@ -204,5 +133,160 @@
   font-size: 9px;
   color: #4F46E5;
   font-weight: 900;
-  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   하단 주차별 가로 근무표 (MobileScheduleTimeline)
+═══════════════════════════════════════════════════════════ */
+
+/* PC에서는 숨김 */
+.mst-wrap  { display: none; }
+@media (max-width: 768px) {
+  .mst-wrap { display: block; }
+}
+
+.mst-wrap {
+  background: #F0F2F5;
+  padding: 0 0 16px;
+}
+
+/* 헤더 */
+.mst-header-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1A1A2E;
+  padding: 14px 16px 6px;
+  background: #fff;
+  border-top: 3px solid #E94560;
+  letter-spacing: .3px;
+}
+
+/* 빈 상태 */
+.mst-empty {
+  display: none;  /* 모바일에서만 */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 8px;
+}
+@media (max-width: 768px) {
+  .mst-empty { display: flex; }
+}
+.mst-empty-icon { font-size: 36px; }
+.mst-empty-text { font-size: 14px; color: #64748B; }
+
+/* 월 섹션 */
+.mst-month-section {
+  margin-top: 12px;
+}
+.mst-month-title {
+  font-size: 20px;
+  font-weight: 900;
+  color: #0F172A;
+  padding: 10px 16px 4px;
+  background: #fff;
+  border-bottom: 1px solid #E2E8F0;
+  letter-spacing: -.3px;
+}
+
+/* 주차 섹션 */
+.mst-week-section {
+  margin-top: 2px;
+  background: #fff;
+  padding-bottom: 4px;
+}
+.mst-week-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  padding: 8px 16px 4px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+/* 가로 스크롤 날짜 행 */
+.mst-week-row {
+  display: grid;
+  grid-auto-flow: column;               /* 가로 방향 나열 */
+  grid-auto-columns: minmax(120px, 1fr);/* 각 카드 최소 120px */
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 12px 10px;
+  scrollbar-width: none;
+}
+.mst-week-row::-webkit-scrollbar { display: none; }
+
+/* 날짜 카드 */
+.mst-day-card {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 10px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  min-height: 60px;
+  transition: background .1s;
+}
+.mst-day-card:active { background: #EEF2FF; }
+
+/* 토요일 카드 */
+.mst-day-card.mst-saturday {
+  border-color: #BFDBFE;
+  background: #F0F7FF;
+}
+/* 일요일 카드 */
+.mst-day-card.mst-sunday {
+  border-color: #FECACA;
+  background: #FFF5F5;
+}
+/* 공휴일 카드 */
+.mst-day-card.mst-holiday {
+  border-color: #FECACA;
+  background: #FFF5F5;
+}
+
+/* 날짜 제목 */
+.mst-day-title {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* 이름표 목록 */
+.mst-chip-list {
+  display: flex;
+  flex-wrap: wrap;    /* 이름표 줄바꿈 허용 */
+  gap: 4px;
+}
+
+/* 이름표 칩 */
+.mst-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  min-height: 26px;
+  line-height: 1.2;
+}
+.mst-chip:active { opacity: .8; }
+
+/* 빈 일정 표시 */
+.mst-no-schedule {
+  font-size: 12px;
+  color: #CBD5E1;
 }
